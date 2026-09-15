@@ -158,6 +158,37 @@ fn a_produced_report_satisfies_the_published_schema() {
 
 #[test]
 #[ignore = "needs a checkout of estamora-conformance-spec; set ESTAMORA_SPEC_REPO and pass --ignored"]
+fn a_report_names_the_schema_the_specification_actually_publishes() {
+    // `$schema` is not decoration: it is the URL a consumer dereferences to check a
+    // report it received. A constant that drifts from the published `$id` produces
+    // reports that name a document that does not exist, and nothing else in this
+    // repository would notice — the URL appears in no other comparison, and a report
+    // still validates against the local copy either way.
+    //
+    // That is exactly how every report this runner emitted came to declare itself
+    // written against `estamora.dev`, a host with no DNS record. Asserting the
+    // constant against the published document is what makes the drift impossible.
+    let Some(root) = spec_root() else {
+        return;
+    };
+    let schema: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(root.join("schema/report.schema.json")).unwrap(),
+    )
+    .unwrap();
+    let published = schema["$id"]
+        .as_str()
+        .expect("the published report schema declares its own $id");
+
+    assert_eq!(
+        estamora_report::REPORT_SCHEMA,
+        published,
+        "every report names this schema, so it has to be the one the specification \
+         publishes — otherwise a consumer is told to fetch a document that is not there"
+    );
+}
+
+#[test]
+#[ignore = "needs a checkout of estamora-conformance-spec; set ESTAMORA_SPEC_REPO and pass --ignored"]
 fn the_schema_rejects_a_report_whose_status_is_not_one_of_the_six() {
     // The negative case matters more than the positive one: a schema that accepted
     // anything would make the positive test vacuous, and a runner that could report a

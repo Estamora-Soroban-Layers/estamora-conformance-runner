@@ -1,5 +1,5 @@
 {
-  "$schema": "https://estamora.dev/schema/report.schema.json",
+  "$schema": "https://estamora-soroban-layers.github.io/estamora-conformance-spec/schema/report.schema.json",
   "estamora_spec_version": "1.0",
   "runner": {
     "name": "estamora",

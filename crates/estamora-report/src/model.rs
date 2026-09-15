@@ -43,7 +43,16 @@ use serde::{Deserialize, Serialize};
 use crate::identifier::identifier;
 
 /// The schema a report declares itself written against.
-pub const REPORT_SCHEMA: &str = "https://estamora.dev/schema/report.schema.json";
+///
+/// It is the `$id` the specification publishes for `schema/report.schema.json`, and it
+/// has to be: `$schema` is a URL a consumer dereferences to validate the document it
+/// received, and one that resolves to nothing turns a machine-checkable report into an
+/// unverifiable one. It previously named `estamora.dev`, a host that does not exist, so
+/// every report this runner produced declared itself written against a document nobody
+/// could fetch. `crates/estamora-report/tests/spec_schema.rs` now checks this constant
+/// against the published document, which is what keeps the two from drifting.
+pub const REPORT_SCHEMA: &str =
+    "https://estamora-soroban-layers.github.io/estamora-conformance-spec/schema/report.schema.json";
 
 /// The longest vector identifier the schema permits.
 const VECTOR_ID_LIMIT: usize = 96;
