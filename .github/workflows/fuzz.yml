@@ -80,7 +80,7 @@ jobs:
           cargo +nightly fuzz list
 
       - name: Cache the corpus
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             fuzz/corpus/${{ matrix.target }}
