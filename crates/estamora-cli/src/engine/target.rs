@@ -5,22 +5,28 @@
 //! contract on a network. This module turns a name into a deployed contract and an
 //! interface to compare against, or refuses with a reason.
 //!
-//! # The network path is a boundary, not a stub
+//! # A remote contract is read, then measured locally
 //!
-//! Reading a contract's state and sending a transaction to a network needs a Soroban
-//! RPC transport. This build does not link one, and the alternative to saying so
-//! would be to accept a contract identifier, do nothing with it, and report a
-//! verdict — which is the one outcome this project must never produce, because a
-//! fabricated `CONFORMANT` is indistinguishable from a real one to everyone who did
-//! not run it.
+//! [`Target::Remote`] is resolved over Soroban RPC to the WebAssembly the contract is
+//! running, and that artifact is then deployed into the local host and measured exactly
+//! as a `.wasm` file on disk is. Nothing about the verdict depends on the network beyond
+//! which bytes were fetched: no funded account is needed, no transaction is submitted,
+//! and a shared ledger cannot change the answer half way through a corpus.
 //!
-//! So [`Target::Remote`] resolves to a [`ErrorClass::ContractResolutionError`]
-//! naming the identifier, the network, and precisely what is missing. The failure is
-//! classified as an *environment* failure and exits `4`, never `1`: CI retries it or
-//! reports it as an infrastructure problem, and never as a contract that failed its
-//! profile. That is the honest rendering of "the runner cannot measure this", and it
-//! is the same treatment an unreachable endpoint gets on a build that *does* have a
-//! transport — an outcome the pipeline is therefore already exercised against.
+//! That means a network problem is never a conformance result. An endpoint that cannot
+//! be reached, a contract that does not exist, and a code hash that disagrees with the
+//! artifact are all [`ErrorClass::ContractResolutionError`] or [`ErrorClass::NetworkError`]
+//! blamed on the environment, and the run exits `4` rather than `1`. A CI job retries
+//! them or files them as infrastructure, and never as a contract that failed its profile.
+//!
+//! ## Why the artifact is fetched once per run
+//!
+//! Every vector declares its own ledger point, so every vector is measured in a fresh
+//! host and the contract is re-registered for each one. Re-fetching it over RPC each
+//! time would mean a corpus of twenty vectors made twenty round trips for a single
+//! artifact — and would let a node that advanced mid-corpus change the artifact half way
+//! through its own report. [`Target::fetch`] is therefore called once by each entry
+//! point and the result passed down, so one run measures one artifact.
 //!
 //! # Seeding, and why some vectors are refused rather than failed
 //!
@@ -68,6 +74,30 @@ pub enum Target {
         /// The network it is on.
         network: String,
     },
+}
+
+/// A contract artifact fetched from a network, with the provenance a report needs.
+///
+/// The provenance is kept rather than reduced to a hash because the point of a
+/// conformance result is that somebody else can reproduce it, and reproducing a remote
+/// measurement means knowing which endpoint was read and which protocol version the
+/// node was serving at the time.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemoteArtifact {
+    /// The contract identifier, as it was given.
+    pub contract_id: String,
+    /// The network it was read from.
+    pub network: String,
+    /// The endpoint that served it.
+    pub rpc_url: String,
+    /// The network's passphrase, as the node reports it.
+    pub passphrase: String,
+    /// The protocol version the node reports.
+    pub protocol_version: u32,
+    /// The hash the contract instance declares, verified against `wasm`.
+    pub wasm_hash: String,
+    /// The deployed WebAssembly.
+    pub wasm: Vec<u8>,
 }
 
 impl Target {
@@ -148,6 +178,51 @@ impl Target {
         })
     }
 
+    /// Fetches what the target needs from outside the repository, once per run.
+    ///
+    /// [`Target::Fixture`] needs nothing and returns `None`; it is registered from a
+    /// Rust type. A remote contract is read over RPC here and nowhere else, so that a
+    /// run fetches one artifact rather than one per vector.
+    ///
+    /// # Errors
+    ///
+    /// Returns a contract resolution error or a network error when the contract cannot
+    /// be read, and a usage error when the `--network` value does not name a network.
+    /// None of those is a statement about the contract's behaviour.
+    pub fn fetch(&self) -> Result<Option<RemoteArtifact>> {
+        self.fetch_via(endpoint_override().as_deref())
+    }
+
+    /// [`Self::fetch`], against an explicitly named endpoint.
+    ///
+    /// The endpoint is a parameter rather than read from the environment here so that a
+    /// test can point one network name at a closed port and assert the whole remote path
+    /// without depending on a shared ledger being up — and without mutating a
+    /// process-wide variable that other tests in the same binary would see.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::fetch`].
+    pub fn fetch_via(&self, override_url: Option<&str>) -> Result<Option<RemoteArtifact>> {
+        let Self::Remote {
+            contract_id,
+            network,
+        } = self
+        else {
+            return Ok(None);
+        };
+        let resolved = estamora_soroban::resolve(contract_id, network, override_url)?;
+        Ok(Some(RemoteArtifact {
+            contract_id: resolved.contract_id,
+            network: resolved.network,
+            rpc_url: resolved.rpc_url,
+            passphrase: resolved.passphrase,
+            protocol_version: resolved.protocol_version,
+            wasm_hash: resolved.wasm_hash,
+            wasm: resolved.wasm,
+        }))
+    }
+
     /// The network the target lives on, as a report records it.
     #[must_use]
     pub fn network(&self) -> &str {
@@ -175,6 +250,20 @@ impl Target {
             Self::Wasm { .. } | Self::Remote { .. } => Seeding::NO_SETUP_DESCRIPTION,
         }
     }
+}
+
+/// The endpoint named by the environment, if any.
+///
+/// This is how a network operator that is not one of the two this build knows by name is
+/// reached, and it is why an unfamiliar endpoint is never guessed at. A blank value is
+/// treated as absent rather than as an endpoint of `""`, because an empty variable is how
+/// a shell renders an unset one and silently reading that as a URL would be a confusing
+/// way to fail.
+#[must_use]
+fn endpoint_override() -> Option<String> {
+    std::env::var(estamora_soroban::RPC_URL_VARIABLE)
+        .ok()
+        .filter(|url| !url.trim().is_empty())
 }
 
 /// The network a locally deployed contract is measured on.
@@ -246,13 +335,23 @@ impl Seeding {
 
 /// Deploys `target` into `host` and reads its interface.
 ///
+/// `artifact` is what [`Target::fetch`] returned for this target, and is required for a
+/// remote target: the fetch is deliberately not repeated here, because this function is
+/// called once per vector and a run must measure one artifact rather than whichever one
+/// the network was serving at each moment.
+///
 /// # Errors
 ///
-/// Returns a contract resolution error when an artifact cannot be read, is larger
-/// than [`MAX_ARTIFACT_BYTES`], publishes no contract spec section, or is a remote
-/// target, which this build cannot reach. Every one of those is an environment
-/// failure rather than anything about the contract's behaviour.
-pub fn deploy(target: &Target, host: &LocalHost) -> Result<Deployment> {
+/// Returns a contract resolution error when an artifact cannot be read, is larger than
+/// [`MAX_ARTIFACT_BYTES`], or publishes no contract spec section; an internal error when
+/// a remote target is deployed without the artifact its fetch should have produced.
+/// Every one of those is an environment failure rather than anything about the
+/// contract's behaviour.
+pub fn deploy(
+    target: &Target,
+    host: &LocalHost,
+    artifact: Option<&RemoteArtifact>,
+) -> Result<Deployment> {
     match target {
         Target::Fixture { defect } => {
             let declared = estamora_fixture_token::interface::declared(*defect);
@@ -307,12 +406,12 @@ pub fn deploy(target: &Target, host: &LocalHost) -> Result<Deployment> {
             // The interface is read before the deployment, so a contract that
             // publishes no spec section is refused rather than deployed and then
             // asked what it exposes.
-            let interface =
-                ExposedInterface::from_wasm(&bytes, format!("the artifact {}", path.display()))?;
+            let describe = format!("the artifact {}", path.display());
+            let interface = ExposedInterface::from_wasm(&bytes, describe.clone())?;
             let wasm_hash = estamora_certification::Digest::of_bytes(&bytes).to_string();
 
             Ok(Deployment {
-                contract: host.register(bytes.as_slice()),
+                contract: host.register_artifact(&bytes, &describe)?,
                 network: LOCAL_NETWORK.to_owned(),
                 wasm_hash: Some(wasm_hash),
                 interface,
@@ -328,29 +427,80 @@ pub fn deploy(target: &Target, host: &LocalHost) -> Result<Deployment> {
         Target::Remote {
             contract_id,
             network,
-        } => Err(Error::new(
-            ErrorClass::ContractResolutionError,
-            format!(
-                "contract {contract_id} on `{network}` cannot be resolved by this build: \
-                 reading a deployed contract's interface and state needs a Soroban RPC \
-                 transport, and none is linked into this runner. No verdict about the \
-                 contract was reached, and this failure is classified as an environment \
-                 failure rather than as a conformance result"
-            ),
-        )
-        .with_context("contract", contract_id.clone())
-        .with_context("network", network.clone())
-        .with_context("reason", "network-transport-unavailable")),
+        } => {
+            // A remote target that arrives here without its artifact is a defect in
+            // this runner rather than anything the caller did, and saying so is the
+            // only safe answer: the alternative is to fetch it here, which would
+            // silently reintroduce one round trip per vector.
+            let Some(artifact) = artifact else {
+                return Err(Error::new(
+                    ErrorClass::InternalError,
+                    format!(
+                        "contract {contract_id} on `{network}` reached deployment without \
+                         having been fetched; the runner must resolve a remote contract \
+                         once before it is measured"
+                    ),
+                )
+                .with_context("contract", contract_id.clone())
+                .with_context("network", network.clone())
+                .with_context("reason", "remote-artifact-not-fetched"));
+            };
+
+            // The interface is read before the deployment, for the same reason a
+            // local artifact's is: a contract that publishes no spec section is
+            // refused rather than deployed and then asked what it exposes.
+            let interface = ExposedInterface::from_wasm(
+                &artifact.wasm,
+                format!(
+                    "contract {contract_id} on `{}` as read from {}",
+                    artifact.network, artifact.rpc_url
+                ),
+            )
+            .map_err(|problem| {
+                // A reader is given the identifier and the network, because the two
+                // things a caller can act on are which contract was meant and which
+                // endpoint answered — and neither is recoverable from the bytes.
+                problem
+                    .with_context("contract", contract_id.clone())
+                    .with_context("network", artifact.network.clone())
+                    .with_context("rpc_url", artifact.rpc_url.clone())
+            })?;
+
+            Ok(Deployment {
+                contract: host.register_artifact(
+                    &artifact.wasm,
+                    &format!(
+                        "contract {contract_id} on `{}` as read from {}",
+                        artifact.network, artifact.rpc_url
+                    ),
+                )?,
+                network: artifact.network.clone(),
+                wasm_hash: Some(artifact.wasm_hash.clone()),
+                interface,
+                // The opening state a vector declares cannot be established against a
+                // deployed contract: it publishes its own interface, not Estamora's
+                // fixture setup entry points, and writing to somebody else's ledger is
+                // not something a measurement may do.
+                seeding: Seeding::Unavailable {
+                    reason: "a deployed contract publishes its own interface rather than \
+                             Estamora's fixture setup entry points, and a measurement does \
+                             not write to the ledger it reads from, so a vector whose world \
+                             declares no opening balance or allowance can be prepared and \
+                             one that declares either cannot"
+                        .to_owned(),
+                },
+            })
+        },
     }
 }
 
 /// Whether `text` has the shape of a contract identifier.
 ///
-/// A shape check rather than a checksum verification, deliberately and with a
-/// consequence that matters: this can accept a mistyped identifier, and the transport
-/// that would reject it is the one this build does not link. Checking the shape is
-/// still worth doing, because the alternative is passing a path or a sentence to the
-/// network layer and reporting whatever it says about it as a resolution outcome.
+/// A shape check rather than a checksum verification, deliberately: this can accept a
+/// mistyped identifier and leave it to the transport to reject, which is what happens,
+/// and it does so as a usage error naming the identifier. Checking the shape is still
+/// worth doing, because the alternative is passing a path or a sentence to the network
+/// layer and reporting whatever it says about it as a resolution outcome.
 #[must_use]
 pub fn looks_like_a_contract_id(text: &str) -> bool {
     const LENGTH: usize = 56;
@@ -367,10 +517,27 @@ pub fn looks_like_a_contract_id(text: &str) -> bool {
     reason = "tests may panic; a failing test is the signal"
 )]
 mod tests {
-    use super::{Seeding, Target, looks_like_a_contract_id};
+    use super::{RemoteArtifact, Seeding, Target, looks_like_a_contract_id};
     use estamora_core::ErrorClass;
     use estamora_fixture_token::Defect;
     use estamora_soroban::LocalHost;
+
+    /// An artifact standing in for one fetched from a network.
+    ///
+    /// Deliberately the same bytes as a real contract would be: the deployment path
+    /// reads a spec section out of them, so a fixture that merely had the right shape
+    /// would not exercise it.
+    fn fetched(wasm: &[u8]) -> RemoteArtifact {
+        RemoteArtifact {
+            contract_id: format!("C{}", "A".repeat(55)),
+            network: "testnet".to_owned(),
+            rpc_url: "https://soroban-testnet.stellar.org".to_owned(),
+            passphrase: "Test SDF Network ; September 2015".to_owned(),
+            protocol_version: 28,
+            wasm_hash: "0".repeat(64),
+            wasm: wasm.to_vec(),
+        }
+    }
 
     #[test]
     fn a_fixture_is_named_and_an_unknown_one_is_refused_with_the_list_of_real_ones() {
@@ -423,22 +590,99 @@ mod tests {
     }
 
     #[test]
-    fn a_remote_target_is_refused_as_an_environment_failure_with_the_reason_named() {
-        // The decisive property: an unresolvable network must never be read as a
-        // conformance result, and the refusal has to say why rather than merely fail.
+    fn a_local_target_fetches_nothing() {
+        // A fixture is registered from a Rust type and an artifact is already on disk,
+        // so neither may cause a network read.
+        assert!(
+            Target::Fixture {
+                defect: Defect::None
+            }
+            .fetch()
+            .unwrap()
+            .is_none()
+        );
+        assert!(
+            Target::Wasm {
+                path: "/nowhere/contract.wasm".into()
+            }
+            .fetch()
+            .unwrap()
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn a_remote_target_that_cannot_be_reached_is_an_environment_failure_with_the_endpoint_named() {
+        // The whole remote path, asserted deterministically: a network name this build
+        // knows is pointed at a closed port, so the transport is genuinely exercised —
+        // parsed, fetched, failed — without depending on a shared ledger being up. What
+        // matters is the classification: somebody else's outage must never be reported as
+        // a contract that failed its profile.
+        //
+        // The identifier is a correctly check-summed StrKey rather than merely a
+        // well-shaped string, because the shape check is not what this test is about: a
+        // fabricated one would be refused as a usage error before the transport was
+        // reached and would assert nothing.
+        let id = "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM";
+        let target = Target::parse(id, Some("testnet")).unwrap();
+        let problem = target
+            .fetch_via(Some("http://127.0.0.1:1"))
+            .expect_err("nothing is listening on port 1");
+
+        assert_eq!(problem.class(), ErrorClass::NetworkError);
+        assert_eq!(problem.blame(), estamora_core::Blame::Environment);
+        assert_eq!(problem.context_value("reason"), Some("network-unreachable"));
+        assert_eq!(problem.context_value("rpc_url"), Some("http://127.0.0.1:1"));
+        assert_eq!(problem.context_value("contract"), Some(id));
+        assert_eq!(
+            crate::exit_code(problem.class()),
+            estamora_core::ExitCode::EnvironmentFailed,
+            "CI must be able to tell an outage from a non-conformant contract"
+        );
+    }
+
+    #[test]
+    fn a_remote_target_without_its_artifact_is_an_internal_error_not_a_verdict() {
+        // Deployment is called once per vector, so a remote target reaching it unfetched
+        // is a defect in the runner. Fetching one here instead would hide that defect
+        // behind a round trip per vector, and would let a node that advanced mid-corpus
+        // change the artifact part way through its own report.
         let id = format!("C{}", "A".repeat(55));
         let target = Target::parse(&id, Some("testnet")).unwrap();
         let host = LocalHost::at_default_point();
-        let problem = super::deploy(&target, &host).unwrap_err();
-        assert_eq!(problem.class(), ErrorClass::ContractResolutionError);
+        let problem = super::deploy(&target, &host, None).unwrap_err();
+        assert_eq!(problem.class(), ErrorClass::InternalError);
         assert_eq!(
             problem.blame(),
-            estamora_core::Blame::Environment,
-            "an unreachable network must not blame the contract"
+            estamora_core::Blame::Runner,
+            "the runner failed to fetch, so the runner is what went wrong"
         );
         assert_eq!(
             problem.context_value("reason"),
-            Some("network-transport-unavailable")
+            Some("remote-artifact-not-fetched")
+        );
+    }
+
+    #[test]
+    fn a_remote_target_is_measured_from_the_artifact_it_was_fetched_with() {
+        // The decisive property: the bytes the fetch produced are the bytes that get
+        // deployed, not merely bytes that are carried alongside. Bytes that are not
+        // WebAssembly must therefore be refused as a resolution failure, which they can
+        // only be if the artifact actually reached the interface reader.
+        let id = format!("C{}", "A".repeat(55));
+        let target = Target::parse(&id, Some("testnet")).unwrap();
+        let host = LocalHost::at_default_point();
+        let artifact = fetched(b"not wasm");
+
+        let problem = super::deploy(&target, &host, Some(&artifact)).unwrap_err();
+        assert_eq!(problem.class(), ErrorClass::ContractResolutionError);
+        assert_eq!(problem.blame(), estamora_core::Blame::Environment);
+        assert_eq!(problem.context_value("contract"), Some(id.as_str()));
+        assert_eq!(problem.context_value("network"), Some("testnet"));
+        assert_eq!(
+            problem.context_value("rpc_url"),
+            Some("https://soroban-testnet.stellar.org"),
+            "a remote failure must say which endpoint answered"
         );
     }
 
@@ -450,6 +694,7 @@ mod tests {
                 defect: Defect::MissingDecimals,
             },
             &host,
+            None,
         )
         .unwrap();
         assert_eq!(
@@ -471,7 +716,7 @@ mod tests {
     fn a_fixture_that_admits_its_defect_is_the_only_one_that_does() {
         let host = LocalHost::at_default_point();
         for defect in Defect::ALL {
-            let deployment = super::deploy(&Target::Fixture { defect }, &host).unwrap();
+            let deployment = super::deploy(&Target::Fixture { defect }, &host, None).unwrap();
             assert_eq!(
                 deployment.interface.declares("decimals"),
                 defect.exposes_decimals(),

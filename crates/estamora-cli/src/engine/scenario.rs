@@ -52,7 +52,7 @@ use estamora_vectors::{ActorKind, AuthorizationExpectation, VectorDocument};
 use soroban_sdk::testutils::{Address as _, MockAuth, MockAuthInvoke};
 use soroban_sdk::{Address, Env, IntoVal as _, Symbol, Val};
 
-use crate::engine::target::{self, Target};
+use crate::engine::target::{self, RemoteArtifact, Target};
 use crate::engine::{observe, record, values};
 
 /// What executing one vector produced.
@@ -68,6 +68,11 @@ pub struct Executed {
 
 /// Executes one vector against `target`.
 ///
+/// `artifact` is what [`Target::fetch`] produced for `target`, and is required when the
+/// target is remote. It is passed in rather than fetched here because this runs once per
+/// vector: a corpus of twenty vectors must not make twenty round trips for one artifact,
+/// nor let the network change which artifact is being measured part way through a report.
+///
 /// # Errors
 ///
 /// Returns an error when the run could not be attempted at all: an artifact that could
@@ -77,6 +82,7 @@ pub struct Executed {
 /// is reported inside the returned outcome.
 pub fn execute(
     target: &Target,
+    artifact: Option<&RemoteArtifact>,
     profile: &ProfileBundle,
     vector: &VectorDocument,
 ) -> Result<Executed> {
@@ -90,7 +96,7 @@ pub fn execute(
     // Deployment happens before anything is measured, so a contract that cannot be
     // resolved or inspected stops the run instead of producing verdicts about an
     // artifact the runner never read.
-    let deployment = target::deploy(target, &host)?;
+    let deployment = target::deploy(target, &host, artifact)?;
 
     let mut diagnostics: Vec<OutcomeDiagnostic> = Vec::new();
     let mut addresses: BTreeMap<String, Address> = BTreeMap::new();

@@ -153,9 +153,28 @@ pub fn resolve(
     network_name: &str,
     override_url: Option<&str>,
 ) -> Result<ResolvedContract> {
-    let network = Network::lookup(network_name, override_url)?;
     let contract = parse_contract_id(contract_id)?;
-    let client = Client::new(&network)?;
+    let network = Network::lookup(network_name, override_url)?;
+
+    // Every failure past this point is a failure to read one particular contract on one
+    // particular network, whichever step produced it. Naming both once here rather than at
+    // each `?` is what makes a resolution failure actionable from a CI log — and the one
+    // that used to be missed was the commonest of all: a node that could not be reached,
+    // which named its endpoint and nothing else.
+    resolve_on(contract_id, &contract, &network).map_err(|problem| {
+        problem
+            .with_context("contract", contract_id)
+            .with_context("network", network.name.clone())
+    })
+}
+
+/// [`resolve`] with the identifier parsed and the network named.
+fn resolve_on(
+    contract_id: &str,
+    contract: &ContractId,
+    network: &Network,
+) -> Result<ResolvedContract> {
+    let client = Client::new(network)?;
 
     let (passphrase, protocol_version) = client.network_identity()?;
 
@@ -165,22 +184,18 @@ pub fn resolve(
         durability: ContractDataDurability::Persistent,
     });
 
-    let instance = client
-        .ledger_entry(&instance_key, contract_id, &network.name)?
-        .ok_or_else(|| {
-            Error::new(
-                ErrorClass::ContractResolutionError,
-                format!(
-                    "no contract instance is stored at {contract_id} on `{}`. The identifier \
+    let instance = client.ledger_entry(&instance_key)?.ok_or_else(|| {
+        Error::new(
+            ErrorClass::ContractResolutionError,
+            format!(
+                "no contract instance is stored at {contract_id} on `{}`. The identifier \
                      is well formed, so this is a contract that does not exist on that \
                      network rather than one that could not be read",
-                    network.name
-                ),
-            )
-            .with_context("contract", contract_id)
-            .with_context("network", network.name.clone())
-            .with_context("reason", "contract-not-found")
-        })?;
+                network.name
+            ),
+        )
+        .with_context("reason", "contract-not-found")
+    })?;
 
     let declared_hash = executable_hash(&instance).ok_or_else(|| {
         Error::new(
@@ -192,37 +207,30 @@ pub fn resolve(
                 network.name
             ),
         )
-        .with_context("contract", contract_id)
-        .with_context("network", network.name.clone())
         .with_context("reason", "host-implemented-contract")
     })?;
 
     let code_key = LedgerKey::ContractCode(LedgerKeyContractCode {
         hash: declared_hash.clone(),
     });
-    let code_entry = client
-        .ledger_entry(&code_key, contract_id, &network.name)?
-        .ok_or_else(|| {
-            Error::new(
-                ErrorClass::ContractResolutionError,
-                format!(
-                    "{contract_id} on `{}` names code {} but no such code entry is stored. \
+    let code_entry = client.ledger_entry(&code_key)?.ok_or_else(|| {
+        Error::new(
+            ErrorClass::ContractResolutionError,
+            format!(
+                "{contract_id} on `{}` names code {} but no such code entry is stored. \
                      The ledger is inconsistent with itself, so nothing was measured",
-                    network.name,
-                    hex::encode(declared_hash.0)
-                ),
-            )
-            .with_context("contract", contract_id)
-            .with_context("network", network.name.clone())
-            .with_context("reason", "code-entry-missing")
-        })?;
+                network.name,
+                hex::encode(declared_hash.0)
+            ),
+        )
+        .with_context("reason", "code-entry-missing")
+    })?;
 
     let wasm = code_bytes(&code_entry).ok_or_else(|| {
         Error::new(
             ErrorClass::ContractResolutionError,
             format!("the code entry for {contract_id} is not a contract code entry"),
         )
-        .with_context("contract", contract_id)
     })?;
 
     if wasm.len() > MAX_ARTIFACT_BYTES {
@@ -233,8 +241,7 @@ pub fn resolve(
                  limit this runner will fetch",
                 wasm.len()
             ),
-        )
-        .with_context("contract", contract_id));
+        ));
     }
 
     verify_code_hash(&declared_hash, &wasm).map_err(|problem| {
@@ -245,8 +252,8 @@ pub fn resolve(
 
     Ok(ResolvedContract {
         contract_id: contract_id.to_owned(),
-        network: network.name,
-        rpc_url: network.rpc_url,
+        network: network.name.clone(),
+        rpc_url: network.rpc_url.clone(),
         passphrase,
         protocol_version,
         wasm_hash: hex::encode(declared_hash.0),
@@ -454,12 +461,10 @@ impl Client {
     }
 
     /// One ledger entry, or `None` when the ledger has none at that key.
-    fn ledger_entry(
-        &self,
-        key: &LedgerKey,
-        contract_id: &str,
-        network: &str,
-    ) -> Result<Option<LedgerEntry>> {
+    ///
+    /// The failures here name neither the contract nor the network: every caller is
+    /// resolving one contract on one network and attaches both once, at the boundary.
+    fn ledger_entry(&self, key: &LedgerKey) -> Result<Option<LedgerEntry>> {
         let encoded = key.to_xdr_base64(Limits::none()).map_err(|problem| {
             Error::new(
                 ErrorClass::InternalError,
@@ -475,11 +480,7 @@ impl Client {
         else {
             return Ok(None);
         };
-        assemble_entry(entry).map(Some).map_err(|problem| {
-            problem
-                .with_context("contract", contract_id)
-                .with_context("network", network)
-        })
+        assemble_entry(entry).map(Some)
     }
 
     /// Posts one JSON-RPC request and returns the decoded body.

@@ -155,7 +155,8 @@ pub fn validate(config: &RunConfig) -> Result<Validated> {
 /// [`inspect`] therefore never claims otherwise.
 pub fn inspect(config: &RunConfig) -> Result<Inspection> {
     let host = LocalHost::at_default_point();
-    let deployment = target::deploy(&config.target, &host)?;
+    let artifact = config.target.fetch()?;
+    let deployment = target::deploy(&config.target, &host, artifact.as_ref())?;
     Ok(Inspection {
         target: config.target.describe(),
         network: deployment.network,
@@ -201,11 +202,22 @@ pub fn run(config: &RunConfig) -> Result<RunOutcome> {
     }
 
     let mut outcomes: Vec<VectorOutcome> = Vec::new();
+    // Resolved once, before anything is measured. Every vector is measured in a fresh
+    // host at its own ledger point, so the contract is re-registered for each one; a
+    // remote contract fetched per vector would make the run's cost scale with the corpus
+    // and would let a node that advanced mid-corpus change the artifact half way through
+    // its own report.
+    let artifact = config.target.fetch()?;
     // The deployment facts are a property of the target rather than of a vector, so the
     // first one that reports them is the one the report carries.
     let mut deployment_facts: Option<(String, Option<String>)> = None;
     for vector in &selected {
-        match scenario::execute(&config.target, &profile, vector.document()) {
+        match scenario::execute(
+            &config.target,
+            artifact.as_ref(),
+            &profile,
+            vector.document(),
+        ) {
             Ok(executed) => {
                 if deployment_facts.is_none() {
                     deployment_facts = Some((executed.network, executed.wasm_hash));

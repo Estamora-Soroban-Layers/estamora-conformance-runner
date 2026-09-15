@@ -1,16 +1,31 @@
 //! Network targets, end to end.
 //!
-//! This build links no Soroban RPC transport, so a deployed contract cannot be measured.
-//! The tests here are not about that limitation being acceptable — they are about the way
-//! it is reported. The failure mode that would be unacceptable is the one this file
-//! exists to prevent: accepting a contract identifier, doing nothing with it, and printing
-//! a verdict. A fabricated `CONFORMANT` is indistinguishable from a real one to everyone
-//! who did not run it.
+//! A deployed contract is resolved over RPC to the WebAssembly it is running, and that
+//! artifact is then measured in the local host. The tests here are not about whether a
+//! network happens to be reachable — they are about how every way of *not* reading a
+//! contract is reported. The failure mode this file exists to prevent is the one that
+//! would be unacceptable: accepting a contract identifier, doing nothing with it, and
+//! printing a verdict. A fabricated `CONFORMANT` is indistinguishable from a real one to
+//! everyone who did not run it.
 //!
-//! The opt-in run at the bottom is where a transport would be exercised, and it is written
-//! so that it asserts the same two things a real one must: that a network *failure* is
-//! never reported as a contract failure, and that a conformance verdict from a network run
-//! names the network and the contract it was reached about.
+//! So the partition asserted here is the load-bearing one. A contract that does not
+//! exist, a network that cannot be reached, and a code hash that disagrees with the
+//! artifact it claims to describe are all environment failures that exit `4`. None of
+//! them may be reported as a contract that failed its profile, which is the only thing
+//! exit `1` means and the only thing that may block a release.
+//!
+//! # Why reading a network is opt-in here
+//!
+//! The default suite runs on a checkout with no network, and a public testnet must not be
+//! able to turn this repository red — a conformance runner that fails when somebody
+//! else's system is down teaches its users to ignore it. The classification itself is
+//! therefore asserted elsewhere, deterministically and without a network:
+//! `estamora-soroban`'s own `tests/testnet.rs` points a known network name at a closed
+//! port, and `estamora-cli`'s `engine::target` tests do the same through the CLI's own
+//! fetch path. Both establish that an outage is an environment failure, which is the
+//! property that matters. What is left here is the part that genuinely needs a live
+//! ledger: whether a real deployment resolves to the artifact it declares. Those tests are
+//! marked ignored and are run by `scripts/test-testnet.sh` and the `testnet` job.
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -21,42 +36,11 @@ use estamora_core::{ErrorClass, ExitCode};
 use estamora_integration_tests as harness;
 
 /// A well-formed contract identifier that does not exist on any network.
+///
+/// Well formed on purpose: a malformed one would be refused by the shape check before any
+/// transport was reached, and would therefore prove nothing about how a network target is
+/// reported.
 const ABSENT_CONTRACT: &str = "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM";
-
-#[test]
-fn a_deployed_contract_is_refused_rather_than_measured_against_nothing() {
-    let outcome = harness::run_target(ABSENT_CONTRACT, Some("testnet"));
-    let problem = outcome.expect_err("this build cannot reach a network");
-    assert_eq!(problem.class(), ErrorClass::ContractResolutionError);
-    assert_eq!(
-        problem.context_value("reason"),
-        Some("network-transport-unavailable"),
-        "the refusal must name what is missing: {problem}"
-    );
-    assert_eq!(problem.context_value("contract"), Some(ABSENT_CONTRACT));
-    assert_eq!(problem.context_value("network"), Some("testnet"));
-}
-
-#[test]
-fn a_network_failure_is_never_reported_as_a_contract_failure() {
-    // The single most damaging classification error this system could make: a CI job that
-    // blocks a release because a network was unreachable, and that teaches its users to
-    // distrust every verdict it produces. Exit `4` is an environment failure and exit `1`
-    // is a contract that violated a requirement, and only a violated requirement may
-    // produce the second.
-    let problem = harness::run_target(ABSENT_CONTRACT, Some("testnet"))
-        .expect_err("this build cannot reach a network");
-    assert_eq!(problem.blame(), estamora_core::Blame::Environment);
-    assert_eq!(
-        estamora_cli::exit_code(problem.class()),
-        ExitCode::EnvironmentFailed
-    );
-    assert_ne!(
-        estamora_cli::exit_code(problem.class()),
-        ExitCode::NonConformant,
-        "an unreachable network must never look like a non-conformant contract"
-    );
-}
 
 #[test]
 fn a_contract_identifier_without_a_network_is_a_usage_error() {
@@ -77,43 +61,10 @@ fn something_that_is_not_a_contract_identifier_is_refused_before_any_transport_i
 }
 
 #[test]
-fn a_testnet_run_is_attempted_only_when_one_is_configured() {
-    // The suite must not depend on the network being reachable, so this test measures what
-    // it can measure locally — that a network target is refused with the transport named —
-    // and adds a real run only when a contract has been named for it. Without
-    // `ESTAMORA_TESTNET_CONTRACT` it is the refusal that is asserted, which is the same
-    // assertion the test above makes and is therefore never a silently skipped test.
-    let Some(contract) = std::env::var_os("ESTAMORA_TESTNET_CONTRACT") else {
-        let problem = harness::run_target(ABSENT_CONTRACT, Some("testnet"))
-            .expect_err("no transport is linked, so no network run is possible");
-        assert_eq!(
-            problem.context_value("reason"),
-            Some("network-transport-unavailable")
-        );
-        return;
-    };
-    let contract = contract.to_string_lossy().into_owned();
-    match harness::run_target(&contract, Some("testnet")) {
-        // A run reached a verdict, so the report must say which deployment it was
-        // reached about. A verdict without its target is not re-verifiable.
-        Ok(outcome) => {
-            assert_eq!(harness::report(&outcome).target.contract, contract);
-            assert_eq!(harness::report(&outcome).target.network, "testnet");
-        },
-        // Or this build cannot reach a network at all, which is the same refusal the
-        // tests above assert and must not be reported as anything else.
-        Err(problem) => assert_eq!(
-            problem.context_value("reason"),
-            Some("network-transport-unavailable"),
-            "a network run that could not be attempted must name the missing transport: {problem}"
-        ),
-    }
-}
-
-#[test]
 fn a_local_run_names_its_network_as_local() {
-    // The counterpart of the test above: a local run must not claim a network, because a
-    // reader comparing two reports has to be able to tell which one measured a deployment.
+    // The counterpart of the network tests: a local run must not claim a network, because
+    // a reader comparing two reports has to be able to tell which one measured a
+    // deployment.
     let outcome = harness::run_fixture("none");
     assert_eq!(harness::report(&outcome).target.network, "local");
     assert!(
@@ -121,5 +72,63 @@ fn a_local_run_names_its_network_as_local() {
             .target
             .contract
             .starts_with("fixture:")
+    );
+}
+
+#[test]
+#[ignore = "reads a live ledger; run with --ignored, or through scripts/test-testnet.sh"]
+fn a_contract_that_does_not_exist_is_an_environment_failure_and_never_a_verdict() {
+    let problem = harness::run_target(ABSENT_CONTRACT, Some("testnet"))
+        .expect_err("a contract that does not exist cannot produce a report");
+    assert_eq!(
+        problem.class(),
+        ErrorClass::ContractResolutionError,
+        "a missing contract is a resolution failure: {problem}"
+    );
+    assert_eq!(
+        problem.context_value("reason"),
+        Some("contract-not-found"),
+        "the failure must name which resolution step failed: {problem}"
+    );
+    assert_eq!(problem.context_value("contract"), Some(ABSENT_CONTRACT));
+    assert_eq!(problem.context_value("network"), Some("testnet"));
+    assert_eq!(
+        problem.blame(),
+        estamora_core::Blame::Environment,
+        "an absent contract says nothing about any contract's behaviour"
+    );
+    assert_ne!(
+        estamora_cli::exit_code(problem.class()),
+        ExitCode::NonConformant,
+        "an unresolvable contract must never look like a non-conformant one"
+    );
+}
+
+#[test]
+#[ignore = "reads a live ledger; run with --ignored, or through scripts/test-testnet.sh"]
+fn a_deployment_is_measured_and_the_report_names_the_deployment_it_was_reached_about() {
+    // Opted into by naming a contract rather than skipped, so that a run of the ignored
+    // set either measures something or says why it could not. A verdict without its
+    // target is not re-verifiable, which is the property asserted here.
+    let contract = std::env::var("ESTAMORA_TESTNET_CONTRACT").unwrap_or_else(|_| {
+        panic!(
+            "this test needs a deployed contract: set ESTAMORA_TESTNET_CONTRACT, or run \
+             `scripts/test-testnet.sh`, which names one"
+        )
+    });
+    let outcome = harness::run_target(&contract, Some("testnet"))
+        .unwrap_or_else(|problem| panic!("{contract} could not be read: {problem}"));
+
+    let report = harness::report(&outcome);
+    assert_eq!(report.target.contract, contract);
+    assert_eq!(report.target.network, "testnet");
+
+    // The verdict itself is about the profile, not about what the contract is. What must
+    // hold regardless is that every requirement the corpus declares was either exercised
+    // or reported as not exercised — a run may not be silent about a requirement it could
+    // not reach.
+    assert!(
+        !outcome.outcomes.is_empty(),
+        "a run that executed no vector is not a verdict"
     );
 }
