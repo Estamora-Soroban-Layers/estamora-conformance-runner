@@ -1,0 +1,67 @@
+# Benchmarks.
+#
+# A package of its own rather than `[[bench]]` entries on the crates, for two reasons.
+# `criterion` would otherwise become a dev-dependency of every crate, including the ones
+# a published consumer depends on, and a benchmark that cannot reach across crate
+# boundaries cannot measure the thing that actually costs time: a whole run, from a
+# profile on disk to a rendered report.
+#
+# The shared setup — the fixture bundle, its corpus, a stored report — lives in
+# `src/lib.rs` so that a benchmark measures the work rather than the scaffolding.
+#
+# What these are for: noticing a regression, not producing numbers for a README. A
+# benchmark number from somebody else's machine, quoted in documentation, is a number
+# that is wrong the day it is written.
+
+[package]
+name = "estamora-benches"
+description = "Benchmarks for profile loading, vector execution, report generation and large corpora."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[lib]
+name = "estamora_benches"
+path = "src/lib.rs"
+
+[dependencies]
+estamora-certification = { path = "../crates/estamora-certification" }
+estamora-cli = { path = "../crates/estamora-cli" }
+estamora-core = { path = "../crates/estamora-core" }
+estamora-profile = { path = "../crates/estamora-profile" }
+estamora-report = { path = "../crates/estamora-report" }
+estamora-vectors = { path = "../crates/estamora-vectors" }
+tempfile = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "profile-loading"
+path = "profile-loading.rs"
+harness = false
+
+[[bench]]
+name = "vector-execution"
+path = "vector-execution.rs"
+harness = false
+
+[[bench]]
+name = "report-generation"
+path = "report-generation.rs"
+harness = false
+
+[[bench]]
+name = "large-profile"
+path = "large-profile.rs"
+harness = false

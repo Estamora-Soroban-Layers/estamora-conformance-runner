@@ -1,0 +1,65 @@
+# The fuzz targets, as their own workspace.
+#
+# `cargo-fuzz` builds with libFuzzer and a sanitizer, which needs nightly, so this
+# cannot be a member of the root workspace: doing so would make the pinned stable
+# toolchain that builds the runner and its contract fixtures also have to be a nightly.
+# An empty `[workspace]` table is what makes this directory its own root rather than a
+# package that believes it is in a workspace when it is not.
+#
+# The targets are deliberately *four directories* rather than the conventional single
+# `fuzz_targets/`, because each one is a different boundary with different untrusted
+# input and a different thing to keep out of the runner. Cargo finds them through the
+# explicit `[[bin]]` entries below, so nothing about `cargo fuzz run <name>` changes.
+
+[package]
+name = "estamora-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Fuzz targets for the boundaries where Estamora accepts untrusted input."
+license = "Apache-2.0"
+repository = "https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+serde_yaml_ng = "0.10"
+serde_json = "1.0"
+
+estamora-core = { path = "../crates/estamora-core" }
+estamora-profile = { path = "../crates/estamora-profile" }
+estamora-vectors = { path = "../crates/estamora-vectors" }
+estamora-report = { path = "../crates/estamora-report" }
+
+[workspace]
+
+[[bin]]
+name = "profile-fuzzer"
+path = "profile-fuzzer/fuzz_target.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "vector-fuzzer"
+path = "vector-fuzzer/fuzz_target.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "assertion-fuzzer"
+path = "assertion-fuzzer/fuzz_target.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "report-fuzzer"
+path = "report-fuzzer/fuzz_target.rs"
+test = false
+doc = false
+bench = false

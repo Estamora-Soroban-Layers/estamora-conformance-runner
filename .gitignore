@@ -1,6 +1,20 @@
 /target
 **/*.rs.bk
 
+# The fuzz workspace has its own target directory, because it is deliberately not a
+# member of the root workspace: `cargo-fuzz` builds with libFuzzer and a sanitizer,
+# which needs nightly, and making it a member would force the pinned stable toolchain
+# that builds the runner and its contract fixtures to be a nightly too.
+fuzz/target
+
+# A fuzz corpus is built up by running the fuzzer, which produces thousands of files
+# nobody reads; CI caches it instead. A crashing input is uploaded as an artefact.
+# A *seed* worth keeping is committed by hand under `fuzz/<target>/seeds/`, with the
+# reason it is interesting, and that directory is tracked.
+fuzz/corpus
+fuzz/artifacts
+fuzz/coverage
+
 # The lock file is committed on purpose. An unpinned dependency tree would let a
 # conformance verdict change without a commit, which is the drift this project
 # exists to make visible.
