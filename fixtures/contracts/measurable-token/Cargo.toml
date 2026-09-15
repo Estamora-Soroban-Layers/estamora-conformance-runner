@@ -1,0 +1,67 @@
+# A contract that exists to be measured as a compiled artifact.
+#
+# This crate is deliberately *outside* the runner's workspace, and says so with its own
+# `[workspace]` table. The workspace enables `soroban-sdk`'s `testutils` for every crate
+# in it, which is right for the runner — it registers fixtures from their Rust types — and
+# fatal for a contract build, because `testutils` is not compiled for WebAssembly. A
+# contract in this workspace could therefore never be built, and the `.wasm` target could
+# never be tested against a real artifact.
+#
+# Being outside the workspace also means this manifest is the whole of it: no inherited
+# version, no inherited lints, no member's feature selection reaching into the build. What
+# it produces is a plain Soroban contract artifact, built the way any other is.
+[workspace]
+
+[package]
+name = "estamora-fixture-measurable-token"
+description = "A Soroban token compiled to WebAssembly, so the runner's artifact target has something real to measure."
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "Apache-2.0"
+repository = "https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# The runner's workspace lints, restated because this crate is not in that workspace.
+# Same intent, same reason: no hand-written unsafe code, no panic on an input, and a
+# suppression has to say why.
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+allow_attributes_without_reason = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"
+
+[dependencies]
+soroban-sdk = "27.0.6"
+
+# The SDK's test utilities are enabled for *tests only*. They are what the in-crate
+# tests register the contract with, and they are exactly what must not be in a contract
+# build: `testutils` does not compile for WebAssembly, so a `[dependencies]` entry here
+# would make the artifact this crate exists to produce unbuildable.
+[dev-dependencies]
+soroban-sdk = { version = "27.0.6", features = ["testutils"] }
+
+# The settings the SDK documents for a contract release build. They are the difference
+# between an artifact a node will accept and one it will not, so they belong here rather
+# than in the command that happens to build it.
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true

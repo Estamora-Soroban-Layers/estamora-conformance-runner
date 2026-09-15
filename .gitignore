@@ -20,9 +20,17 @@ fuzz/coverage
 # exists to make visible.
 Cargo.lock.orig
 
-# Contract fixtures are compiled from the sources beside them during
-# integration tests. The artefacts are reproducible and are not committed.
-fixtures/contracts/target
+# A contract fixture built outside the workspace — `measurable-token` declares its own
+# `[workspace]` so that it can be compiled for WebAssembly — writes its build output
+# beside itself.
+#
+# The artefact that is *measured* is the copy under `fixtures/wasm/`, and that one is
+# committed on purpose: the runner's `.wasm` target can only be tested against a real
+# compilation, and a suite that first had to build one would not run on a checkout that
+# is only reading. `scripts/build-fixture-wasm.sh` refreshes the copy, and CI rebuilds
+# it and fails if the committed one differs, so a committed artefact cannot go stale
+# without a red job.
+fixtures/contracts/*/target
 
 # Editor and OS noise.
 .idea
