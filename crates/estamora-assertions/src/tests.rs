@@ -294,6 +294,70 @@ fn a_relative_requirement_reports_the_movement_it_observed() {
 }
 
 #[test]
+fn a_stated_magnitude_of_zero_is_satisfied_by_a_value_that_did_not_move() {
+    // Found by running the real corpus against the conforming fixture: a transfer of
+    // zero satisfies "the sender's balance decreases by the amount", because the
+    // amount is zero and the balance did change by minus zero. Testing the direction
+    // separately from the magnitude rejected that, and made a contract that behaves
+    // exactly as the profile requires fail a requirement it satisfies.
+    let before = Fake::new().answering("balance", &["alice"], Value::Integer(1_000));
+    let after = Fake::new().answering("balance", &["alice"], Value::Integer(1_000));
+
+    let decreased = evaluate(
+        &before,
+        &after,
+        &format!(
+            "kind: delta\ntarget: {BALANCE_OF_ALICE}\ndirection: decrease\nby: {{kind: literal, value: \"0\"}}"
+        ),
+    )
+    .unwrap();
+    assert!(decreased.held, "{decreased:?}");
+    assert_eq!(decreased.expected, "decrease by 0");
+
+    // A magnitude that is not zero still requires the movement to have happened, and
+    // in the stated direction: the two are one requirement, not two.
+    let unchanged = evaluate(
+        &before,
+        &after,
+        &format!(
+            "kind: delta\ntarget: {BALANCE_OF_ALICE}\ndirection: decrease\nby: {{kind: literal, value: \"1\"}}"
+        ),
+    )
+    .unwrap();
+    assert!(
+        !unchanged.held,
+        "a balance that did not move has not decreased"
+    );
+
+    // The direction is not merely a sign convention on the magnitude: a movement of
+    // 250 in the wrong direction must not satisfy either requirement.
+    let rose = after.answering("balance", &["alice"], Value::Integer(1_250));
+    let decrease_required = evaluate(
+        &before,
+        &rose,
+        &format!(
+            "kind: delta\ntarget: {BALANCE_OF_ALICE}\ndirection: decrease\nby: {{kind: literal, value: \"250\"}}"
+        ),
+    )
+    .unwrap();
+    assert!(
+        !decrease_required.held,
+        "a balance that rose by 250 did not decrease by 250"
+    );
+
+    let increase_required = evaluate(
+        &before,
+        &rose,
+        &format!(
+            "kind: delta\ntarget: {BALANCE_OF_ALICE}\ndirection: increase\nby: {{kind: literal, value: \"100\"}}"
+        ),
+    )
+    .unwrap();
+    assert!(!increase_required.held, "250 is not 100");
+    assert_eq!(increase_required.expected, "increase by 100 (observed 250)");
+}
+
+#[test]
 fn an_input_resolves_to_the_argument_the_operation_was_called_with() {
     let world = Fake::new().answering("balance", &["alice"], Value::Integer(1_000));
     let inputs = actor_input("who", "alice");

@@ -297,17 +297,30 @@ fn evaluate_delta(
                 required.render()
             )));
         };
+        // A stated magnitude *is* the requirement, direction included, so the
+        // direction is not tested separately once one is written. The two tests are
+        // not independent: an operation that moves nothing satisfies "decrease by
+        // zero", because the balance did change — by minus zero — and a separate
+        // direction test would read that movement as `unchanged` and reject it. The
+        // consequence is not academic: it makes a conforming contract that transfers
+        // an amount of zero fail a requirement it satisfies exactly.
+        //
         // The subtraction is checked rather than plain, because the difference of
         // two representable integers can itself be unrepresentable. A difference
         // that cannot be written down cannot equal a magnitude that was, so the
         // requirement does not hold — which is a fact about the observation rather
-        // than a reason to abort the evaluation.
-        //
-        // `unsigned_abs` rather than `abs`: it is the only form that is defined at
-        // the bottom of the range.
-        held &= to
-            .checked_sub(from)
-            .is_some_and(|reached| reached.unsigned_abs() == required.unsigned_abs());
+        // than a reason to abort the evaluation. `checked_neg` for the same reason: a
+        // magnitude at the bottom of the range has no representable negative.
+        let signed = match direction {
+            DeltaDirection::Increase => Some(required),
+            DeltaDirection::Decrease => required.checked_neg(),
+            // "Unchanged by a nonzero magnitude" is not a requirement about a
+            // movement at all and cannot hold. Stated rather than folded into
+            // "unchanged", which would read a contradictory requirement as a
+            // satisfied one.
+            DeltaDirection::Unchanged => (required == 0).then_some(0),
+        };
+        held = signed.is_some_and(|signed| to.checked_sub(from) == Some(signed));
         expected = format!("{expected} by {required}");
     }
 
