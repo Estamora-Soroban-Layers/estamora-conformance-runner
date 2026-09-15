@@ -23,6 +23,7 @@ members = [
   "crates/estamora-vectors",
   "crates/estamora-soroban",
   "crates/estamora-assertions",
+  "crates/estamora-report",
 ]
 
 [workspace.package]
