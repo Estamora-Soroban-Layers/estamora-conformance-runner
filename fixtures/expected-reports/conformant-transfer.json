@@ -1,0 +1,907 @@
+{
+  "$schema": "https://estamora.dev/schema/report.schema.json",
+  "estamora_spec_version": "1.0",
+  "runner": {
+    "name": "estamora",
+    "version": "0.1.0"
+  },
+  "generated_at": "2026-01-15T12:00:00Z",
+  "target": {
+    "contract": "fixture:none",
+    "network": "local",
+    "wasm_hash": null,
+    "metadata": {}
+  },
+  "profile": {
+    "id": "conformance-token",
+    "version": "1.0",
+    "digest": "sha256:02d961cdf2d90f33055019542fa23854a9f483596de8cb1059197e8d2c3c6a9c"
+  },
+  "vectors": {
+    "digest": "sha256:2bd5ad46d3e90a805f08560417640279ac2df84342467558fba7d2b4d9e72fa6",
+    "count": 4
+  },
+  "configuration": {
+    "contract": "fixture:none",
+    "network": "local",
+    "profile_root": "fixtures/profiles/conformance-token/1.0",
+    "seeding": "fixture_entry_points",
+    "tags": [],
+    "vectors_root": "fixtures/vectors"
+  },
+  "results": [
+    {
+      "vector_id": "balance-is-reported",
+      "category": "positive",
+      "status": "passed",
+      "assertions": [
+        {
+          "id": "interface-method-transfer",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method transfer is available",
+          "observed": "present in the fixture `none`",
+          "detail": "check: interface/method/transfer"
+        },
+        {
+          "id": "interface-arity-transfer",
+          "category": "interface",
+          "status": "passed",
+          "expected": "3 parameter(s)",
+          "observed": "3 parameter(s)",
+          "detail": "check: interface/arity/transfer"
+        },
+        {
+          "id": "interface-parameter-transfer-0",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/transfer/0\nparameter `from`"
+        },
+        {
+          "id": "interface-parameter-transfer-1",
+          "category": "interface",
+          "status": "passed",
+          "expected": "muxed_address",
+          "observed": "muxed_address",
+          "detail": "check: interface/parameter/transfer/1\nparameter `to`"
+        },
+        {
+          "id": "interface-parameter-transfer-2",
+          "category": "interface",
+          "status": "passed",
+          "expected": "i128",
+          "observed": "i128",
+          "detail": "check: interface/parameter/transfer/2\nparameter `amount`"
+        },
+        {
+          "id": "interface-return-transfer",
+          "category": "interface",
+          "status": "passed",
+          "expected": "void",
+          "observed": "void",
+          "detail": "check: interface/return/transfer"
+        },
+        {
+          "id": "interface-method-balance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method balance is available",
+          "observed": "present in the fixture `none`",
+          "detail": "check: interface/method/balance"
+        },
+        {
+          "id": "interface-arity-balance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "1 parameter(s)",
+          "observed": "1 parameter(s)",
+          "detail": "check: interface/arity/balance"
+        },
+        {
+          "id": "interface-parameter-balance-0",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/balance/0\nparameter `address`"
+        },
+        {
+          "id": "interface-return-balance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "i128",
+          "observed": "i128",
+          "detail": "check: interface/return/balance"
+        },
+        {
+          "id": "authorization-plan-balance-is-reported",
+          "category": "authorization",
+          "status": "passed",
+          "expected": "the call is accepted with no signature",
+          "observed": "accepted",
+          "detail": "check: authorization/plan/balance-is-reported\nauthorization path: unauthorized"
+        },
+        {
+          "id": "authorization-principal-balance-needs-no-authorization",
+          "category": "authorization",
+          "status": "passed",
+          "expected": "no principal is required to authorize",
+          "observed": "<no authorization required>",
+          "detail": "check: authorization/principal/balance-needs-no-authorization\nthe profile declares that balance requires no authorization"
+        },
+        {
+          "id": "authorization-coverage-balance-needs-no-authorization",
+          "category": "authorization",
+          "status": "passed",
+          "expected": "at most()",
+          "observed": "<no arguments>",
+          "detail": "check: authorization/coverage/balance-needs-no-authorization\nthe coverage the contract demanded was derived by matching each authorized address against the call's own argument values, so it is what the contract required rather than what the vector offered; mode: at most"
+        },
+        {
+          "id": "authorization-outcome-balance-needs-no-authorization-un-fbffd109",
+          "category": "authorization",
+          "status": "passed",
+          "expected": "accepted",
+          "observed": "accepted",
+          "detail": "check: authorization/outcome/balance-needs-no-authorization/unauthorized\npath: unauthorized"
+        },
+        {
+          "id": "event-forbidden-balance-is-reported-transfer",
+          "category": "event",
+          "status": "passed",
+          "expected": "no transfer event is emitted",
+          "observed": "0 emitted",
+          "detail": "check: event/forbidden/balance-is-reported/transfer"
+        },
+        {
+          "id": "state-balance-unchanged",
+          "category": "state",
+          "status": "passed",
+          "expected": "1000 (equal)",
+          "observed": "1000",
+          "detail": "check: state/balance-unchanged\nreads the balance of `alice`; A read must leave the balance it read exactly as it found it."
+        },
+        {
+          "id": "invariant-bounds-balances-are-non-negative-0",
+          "category": "invariant",
+          "status": "passed",
+          "expected": "0 (observed is greater)",
+          "observed": "1000",
+          "detail": "check: invariant/bounds/balances-are-non-negative/0\nmember 0 of `balances`: Every account's balance must be greater than or equal to zero.; Evaluated once against each member of the balance set. A negative balance means value moved out of an account that did not have it, which is the arithmetic signature of an unchecked subtraction or of a missing balance check."
+        },
+        {
+          "id": "invariant-bounds-balances-are-non-negative-1",
+          "category": "invariant",
+          "status": "passed",
+          "expected": "0 (equal)",
+          "observed": "0",
+          "detail": "check: invariant/bounds/balances-are-non-negative/1\nmember 1 of `balances`: Every account's balance must be greater than or equal to zero.; Evaluated once against each member of the balance set. A negative balance means value moved out of an account that did not have it, which is the arithmetic signature of an unchecked subtraction or of a missing balance check."
+        }
+      ]
+    },
+    {
+      "vector_id": "transfer-beyond-the-balance-fails",
+      "category": "negative",
+      "status": "passed",
+      "assertions": [
+        {
+          "id": "interface-method-transfer",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method transfer is available",
+          "observed": "present in the fixture `none`",
+          "detail": "check: interface/method/transfer"
+        },
+        {
+          "id": "interface-arity-transfer",
+          "category": "interface",
+          "status": "passed",
+          "expected": "3 parameter(s)",
+          "observed": "3 parameter(s)",
+          "detail": "check: interface/arity/transfer"
+        },
+        {
+          "id": "interface-parameter-transfer-0",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/transfer/0\nparameter `from`"
+        },
+        {
+          "id": "interface-parameter-transfer-1",
+          "category": "interface",
+          "status": "passed",
+          "expected": "muxed_address",
+          "observed": "muxed_address",
+          "detail": "check: interface/parameter/transfer/1\nparameter `to`"
+        },
+        {
+          "id": "interface-parameter-transfer-2",
+          "category": "interface",
+          "status": "passed",
+          "expected": "i128",
+          "observed": "i128",
+          "detail": "check: interface/parameter/transfer/2\nparameter `amount`"
+        },
+        {
+          "id": "interface-return-transfer",
+          "category": "interface",
+          "status": "passed",
+          "expected": "void",
+          "observed": "void",
+          "detail": "check: interface/return/transfer"
+        },
+        {
+          "id": "interface-method-balance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method balance is available",
+          "observed": "present in the fixture `none`",
+          "detail": "check: interface/method/balance"
+        },
+        {
+          "id": "interface-arity-balance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "1 parameter(s)",
+          "observed": "1 parameter(s)",
+          "detail": "check: interface/arity/balance"
+        },
+        {
+          "id": "interface-parameter-balance-0",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/balance/0\nparameter `address`"
+        },
+        {
+          "id": "interface-return-balance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "i128",
+          "observed": "i128",
+          "detail": "check: interface/return/balance"
+        },
+        {
+          "id": "behavior-transfer-beyond-the-balance-fails-outcome-tran-b0e779e7",
+          "category": "behavior",
+          "status": "passed",
+          "expected": "refused",
+          "observed": "refused",
+          "detail": "check: behavior/transfer-beyond-the-balance-fails/outcome/transfer-beyond-the-balance-fails\nA transfer above the sender's balance must be refused and leave both balances alone."
+        },
+        {
+          "id": "behavior-transfer-beyond-the-balance-fails-postcondition-0",
+          "category": "behavior",
+          "status": "passed",
+          "expected": "unchanged at 1000",
+          "observed": "1000 \u2192 1000",
+          "detail": "check: behavior/transfer-beyond-the-balance-fails/postcondition/0\nA transfer above the sender's balance must be refused and leave both balances alone. (unchanged)"
+        },
+        {
+          "id": "behavior-transfer-beyond-the-balance-fails-postcondition-1",
+          "category": "behavior",
+          "status": "passed",
+          "expected": "unchanged at 500",
+          "observed": "500 \u2192 500",
+          "detail": "check: behavior/transfer-beyond-the-balance-fails/postcondition/1\nA transfer above the sender's balance must be refused and leave both balances alone. (unchanged)"
+        },
+        {
+          "id": "behavior-transfer-beyond-the-balance-fails-failure",
+          "category": "behavior",
+          "status": "passed",
+          "expected": "a refusal classified as one of [insufficient-transfer-balance]",
+          "observed": "insufficient-transfer-balance",
+          "detail": "check: behavior/transfer-beyond-the-balance-fails/failure\nChecked so that a vector cannot report a pass for a rule whose scenario it did not construct. The refusal's own category and state effect are reported by the failure dimension."
+        },
+        {
+          "id": "event-forbidden-behavior-transfer-beyond-the-balance-fa-3b3ff047",
+          "category": "event",
+          "status": "passed",
+          "expected": "no transfer event is emitted",
+          "observed": "0 emitted",
+          "detail": "check: event/forbidden/behavior/transfer-beyond-the-balance-fails/transfer"
+        },
+        {
+          "id": "authorization-plan-transfer-beyond-the-balance-fails",
+          "category": "authorization",
+          "status": "passed",
+          "expected": "the call is accepted",
+          "observed": "refused",
+          "detail": "check: authorization/plan/transfer-beyond-the-balance-fails\nauthorization path: authorized"
+        },
+        {
+          "id": "event-forbidden-transfer-beyond-the-balance-fails-transfer",
+          "category": "event",
+          "status": "passed",
+          "expected": "no transfer event is emitted",
+          "observed": "0 emitted",
+          "detail": "check: event/forbidden/transfer-beyond-the-balance-fails/transfer"
+        },
+        {
+          "id": "state-sender-unchanged",
+          "category": "state",
+          "status": "passed",
+          "expected": "unchanged at 1000",
+          "observed": "1000 \u2192 1000",
+          "detail": "check: state/sender-unchanged\nreads the balance of `alice`; A refused transfer must not debit the sender."
+        },
+        {
+          "id": "state-recipient-unchanged",
+          "category": "state",
+          "status": "passed",
+          "expected": "unchanged at 500",
+          "observed": "500 \u2192 500",
+          "detail": "check: state/recipient-unchanged\nreads the balance of `bob`; A refused transfer must not credit the recipient."
+        },
+        {
+          "id": "invariant-bounds-balances-are-non-negative-0",
+          "category": "invariant",
+          "status": "passed",
+          "expected": "0 (observed is greater)",
+          "observed": "1000",
+          "detail": "check: invariant/bounds/balances-are-non-negative/0\nmember 0 of `balances`: Every account's balance must be greater than or equal to zero.; Evaluated once against each member of the balance set. A negative balance means value moved out of an account that did not have it, which is the arithmetic signature of an unchecked subtraction or of a missing balance check."
+        },
+        {
+          "id": "invariant-bounds-balances-are-non-negative-1",
+          "category": "invariant",
+          "status": "passed",
+          "expected": "0 (observed is greater)",
+          "observed": "500",
+          "detail": "check: invariant/bounds/balances-are-non-negative/1\nmember 1 of `balances`: Every account's balance must be greater than or equal to zero.; Evaluated once against each member of the balance set. A negative balance means value moved out of an account that did not have it, which is the arithmetic signature of an unchecked subtraction or of a missing balance check."
+        },
+        {
+          "id": "invariant-state-unchanged-failed-transfer-cannot-mutate-0",
+          "category": "invariant",
+          "status": "passed",
+          "expected": "1000",
+          "observed": "1000",
+          "detail": "check: invariant/state_unchanged/failed-transfer-cannot-mutate/0\nWhen a transfer is refused, the contract state must be exactly as it was.: the balance of `alice`; Scoped to the failure outcome of `transfer`, so a contract cannot satisfy it by never failing. A contract that performs the debit and then reports a failure has in practice moved the value while telling the caller it did not, and every consumer that trusts the error path reconstructs a different ledger from the contract's own."
+        },
+        {
+          "id": "invariant-state-unchanged-failed-transfer-cannot-mutate-1",
+          "category": "invariant",
+          "status": "passed",
+          "expected": "500",
+          "observed": "500",
+          "detail": "check: invariant/state_unchanged/failed-transfer-cannot-mutate/1\nWhen a transfer is refused, the contract state must be exactly as it was.: the balance of `bob`; Scoped to the failure outcome of `transfer`, so a contract cannot satisfy it by never failing. A contract that performs the debit and then reports a failure has in practice moved the value while telling the caller it did not, and every consumer that trusts the error path reconstructs a different ledger from the contract's own."
+        },
+        {
+          "id": "failure-outcome-transfer-beyond-the-balance-fails",
+          "category": "failure",
+          "status": "passed",
+          "expected": "the call is refused",
+          "observed": "refused with no contract error code",
+          "detail": "check: failure/outcome/transfer-beyond-the-balance-fails\nThe profile requires this path to be refused for a stated reason (`insufficient-transfer-balance`)."
+        },
+        {
+          "id": "failure-signal-insufficient-transfer-balance",
+          "category": "failure",
+          "status": "passed",
+          "expected": "signalled by either",
+          "observed": "trapped",
+          "detail": "check: failure/signal/insufficient-transfer-balance\nThe payload is implementation-defined, so only the semantic category is required: insufficient_balance"
+        },
+        {
+          "id": "failure-state-transfer-beyond-the-balance-fails-0",
+          "category": "failure",
+          "status": "passed",
+          "expected": "1000",
+          "observed": "1000",
+          "detail": "check: failure/state/transfer-beyond-the-balance-fails/0\nthe balance of `alice` must survive the refusal (unchanged)"
+        },
+        {
+          "id": "failure-state-transfer-beyond-the-balance-fails-1",
+          "category": "failure",
+          "status": "passed",
+          "expected": "500",
+          "observed": "500",
+          "detail": "check: failure/state/transfer-beyond-the-balance-fails/1\nthe balance of `bob` must survive the refusal (unchanged)"
+        },
+        {
+          "id": "failure-events-transfer-beyond-the-balance-fails",
+          "category": "failure",
+          "status": "passed",
+          "expected": "no event is emitted",
+          "observed": "0 event(s) observed",
+          "detail": "check: failure/events/transfer-beyond-the-balance-fails\nA refusal that emitted the success event would corrupt every indexer built on the standard, which is the failure this requirement exists to catch."
+        }
+      ],
+      "diagnostics": [
+        {
+          "code": "rule-inapplicable-transfer-moves-the-exact-amount",
+          "message": "the rule describes a path that must succeed and the vector expects failure"
+        },
+        {
+          "code": "authorization-unobservable-sender-authorizes-transfer",
+          "message": "the call was refused rather than completed, so neither the principal the profile requires over `transfer` nor the arguments its signature must cover could be read: the host records what it authenticated, and a refused call unwinds that record. The requirement was not exercised by this vector, and the reason the call was refused is checked by the outcome check below rather than assumed here."
+        }
+      ]
+    },
+    {
+      "vector_id": "transfer-moves-the-exact-amount",
+      "category": "positive",
+      "status": "passed",
+      "assertions": [
+        {
+          "id": "interface-method-transfer",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method transfer is available",
+          "observed": "present in the fixture `none`",
+          "detail": "check: interface/method/transfer"
+        },
+        {
+          "id": "interface-arity-transfer",
+          "category": "interface",
+          "status": "passed",
+          "expected": "3 parameter(s)",
+          "observed": "3 parameter(s)",
+          "detail": "check: interface/arity/transfer"
+        },
+        {
+          "id": "interface-parameter-transfer-0",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/transfer/0\nparameter `from`"
+        },
+        {
+          "id": "interface-parameter-transfer-1",
+          "category": "interface",
+          "status": "passed",
+          "expected": "muxed_address",
+          "observed": "muxed_address",
+          "detail": "check: interface/parameter/transfer/1\nparameter `to`"
+        },
+        {
+          "id": "interface-parameter-transfer-2",
+          "category": "interface",
+          "status": "passed",
+          "expected": "i128",
+          "observed": "i128",
+          "detail": "check: interface/parameter/transfer/2\nparameter `amount`"
+        },
+        {
+          "id": "interface-return-transfer",
+          "category": "interface",
+          "status": "passed",
+          "expected": "void",
+          "observed": "void",
+          "detail": "check: interface/return/transfer"
+        },
+        {
+          "id": "interface-method-balance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method balance is available",
+          "observed": "present in the fixture `none`",
+          "detail": "check: interface/method/balance"
+        },
+        {
+          "id": "interface-arity-balance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "1 parameter(s)",
+          "observed": "1 parameter(s)",
+          "detail": "check: interface/arity/balance"
+        },
+        {
+          "id": "interface-parameter-balance-0",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/balance/0\nparameter `address`"
+        },
+        {
+          "id": "interface-return-balance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "i128",
+          "observed": "i128",
+          "detail": "check: interface/return/balance"
+        },
+        {
+          "id": "behavior-transfer-moves-the-exact-amount-outcome-transf-392399bf",
+          "category": "behavior",
+          "status": "passed",
+          "expected": "accepted",
+          "observed": "accepted",
+          "detail": "check: behavior/transfer-moves-the-exact-amount/outcome/transfer-moves-the-exact-amount\nA successful transfer debits the sender and credits the recipient by the exact amount."
+        },
+        {
+          "id": "behavior-transfer-moves-the-exact-amount-postcondition-0",
+          "category": "behavior",
+          "status": "passed",
+          "expected": "decrease by 250",
+          "observed": "1000 \u2192 750",
+          "detail": "check: behavior/transfer-moves-the-exact-amount/postcondition/0\nA successful transfer debits the sender and credits the recipient by the exact amount. (delta)"
+        },
+        {
+          "id": "behavior-transfer-moves-the-exact-amount-postcondition-1",
+          "category": "behavior",
+          "status": "passed",
+          "expected": "increase by 250",
+          "observed": "500 \u2192 750",
+          "detail": "check: behavior/transfer-moves-the-exact-amount/postcondition/1\nA successful transfer debits the sender and credits the recipient by the exact amount. (delta)"
+        },
+        {
+          "id": "event-required-behavior-transfer-moves-the-exact-amount-transfer",
+          "category": "event",
+          "status": "passed",
+          "expected": "between 1 and 1 transfer event(s)",
+          "observed": "1",
+          "detail": "check: event/required/behavior/transfer-moves-the-exact-amount/transfer\nExactly one transfer event must describe a successful value movement."
+        },
+        {
+          "id": "authorization-plan-transfer-moves-the-exact-amount",
+          "category": "authorization",
+          "status": "passed",
+          "expected": "the call is accepted",
+          "observed": "accepted",
+          "detail": "check: authorization/plan/transfer-moves-the-exact-amount\nauthorization path: authorized"
+        },
+        {
+          "id": "authorization-principal-sender-authorizes-transfer",
+          "category": "authorization",
+          "status": "passed",
+          "expected": "alice",
+          "observed": "alice over from",
+          "detail": "check: authorization/principal/sender-authorizes-transfer"
+        },
+        {
+          "id": "authorization-coverage-sender-authorizes-transfer",
+          "category": "authorization",
+          "status": "passed",
+          "expected": "exactly(from)",
+          "observed": "from",
+          "detail": "check: authorization/coverage/sender-authorizes-transfer\nthe coverage the contract demanded was derived by matching each authorized address against the call's own argument values, so it is what the contract required rather than what the vector offered; mode: exactly"
+        },
+        {
+          "id": "event-cardinality-transfer-moves-the-exact-amount-0",
+          "category": "event",
+          "status": "passed",
+          "expected": "between 1 and 1 transfer event(s)",
+          "observed": "1",
+          "detail": "check: event/cardinality/transfer-moves-the-exact-amount/0\nExactly one transfer event must describe a successful value movement."
+        },
+        {
+          "id": "event-topic-transfer-moves-the-exact-amount-0-0",
+          "category": "event",
+          "status": "passed",
+          "expected": "transfer",
+          "observed": "transfer",
+          "detail": "check: event/topic/transfer-moves-the-exact-amount/0/0\ntopic 0: The event discriminator, which fixes the event's name."
+        },
+        {
+          "id": "event-topic-transfer-moves-the-exact-amount-0-1",
+          "category": "event",
+          "status": "passed",
+          "expected": "alice (address)",
+          "observed": "alice (address)",
+          "detail": "check: event/topic/transfer-moves-the-exact-amount/0/1\ntopic 1: The account the tokens were drawn from, which must be the debited account."
+        },
+        {
+          "id": "event-topic-transfer-moves-the-exact-amount-0-2",
+          "category": "event",
+          "status": "passed",
+          "expected": "bob (address)",
+          "observed": "bob (address)",
+          "detail": "check: event/topic/transfer-moves-the-exact-amount/0/2\ntopic 2: The account that received the tokens, which must be the credited account."
+        },
+        {
+          "id": "event-data-transfer-moves-the-exact-amount-0-amount",
+          "category": "event",
+          "status": "passed",
+          "expected": "250",
+          "observed": "250",
+          "detail": "check: event/data/transfer-moves-the-exact-amount/0/amount"
+        },
+        {
+          "id": "state-sender-debited",
+          "category": "state",
+          "status": "passed",
+          "expected": "750 (equal)",
+          "observed": "750",
+          "detail": "check: state/sender-debited\nreads the balance of `alice`; The sender must lose exactly the transferred quantity."
+        },
+        {
+          "id": "state-recipient-credited",
+          "category": "state",
+          "status": "passed",
+          "expected": "750 (equal)",
+          "observed": "750",
+          "detail": "check: state/recipient-credited\nreads the balance of `bob`; The recipient must gain exactly the transferred quantity."
+        },
+        {
+          "id": "invariant-conservation-balances-are-conserved-by-transfer",
+          "category": "invariant",
+          "status": "passed",
+          "expected": "1500 over `balances`",
+          "observed": "1500",
+          "detail": "check: invariant/conservation/balances-are-conserved-by-transfer\nMoving value between holders must not change the sum of all balances.; The sum is taken across the whole fixture balance set rather than across the two accounts the operation names. That makes the invariant sensitive to a contract that credits a third account, mints on transfer, or rounds a remainder into a fee address, none of which a pairwise check would notice."
+        },
+        {
+          "id": "invariant-bounds-balances-are-non-negative-0",
+          "category": "invariant",
+          "status": "passed",
+          "expected": "0 (observed is greater)",
+          "observed": "750",
+          "detail": "check: invariant/bounds/balances-are-non-negative/0\nmember 0 of `balances`: Every account's balance must be greater than or equal to zero.; Evaluated once against each member of the balance set. A negative balance means value moved out of an account that did not have it, which is the arithmetic signature of an unchecked subtraction or of a missing balance check."
+        },
+        {
+          "id": "invariant-bounds-balances-are-non-negative-1",
+          "category": "invariant",
+          "status": "passed",
+          "expected": "0 (observed is greater)",
+          "observed": "750",
+          "detail": "check: invariant/bounds/balances-are-non-negative/1\nmember 1 of `balances`: Every account's balance must be greater than or equal to zero.; Evaluated once against each member of the balance set. A negative balance means value moved out of an account that did not have it, which is the arithmetic signature of an unchecked subtraction or of a missing balance check."
+        }
+      ],
+      "diagnostics": [
+        {
+          "code": "rule-inapplicable-transfer-beyond-the-balance-fails",
+          "message": "the rule describes a path that must fail and the vector expects success"
+        }
+      ]
+    },
+    {
+      "vector_id": "transfer-without-authorization-fails",
+      "category": "authorization",
+      "status": "passed",
+      "assertions": [
+        {
+          "id": "interface-method-transfer",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method transfer is available",
+          "observed": "present in the fixture `none`",
+          "detail": "check: interface/method/transfer"
+        },
+        {
+          "id": "interface-arity-transfer",
+          "category": "interface",
+          "status": "passed",
+          "expected": "3 parameter(s)",
+          "observed": "3 parameter(s)",
+          "detail": "check: interface/arity/transfer"
+        },
+        {
+          "id": "interface-parameter-transfer-0",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/transfer/0\nparameter `from`"
+        },
+        {
+          "id": "interface-parameter-transfer-1",
+          "category": "interface",
+          "status": "passed",
+          "expected": "muxed_address",
+          "observed": "muxed_address",
+          "detail": "check: interface/parameter/transfer/1\nparameter `to`"
+        },
+        {
+          "id": "interface-parameter-transfer-2",
+          "category": "interface",
+          "status": "passed",
+          "expected": "i128",
+          "observed": "i128",
+          "detail": "check: interface/parameter/transfer/2\nparameter `amount`"
+        },
+        {
+          "id": "interface-return-transfer",
+          "category": "interface",
+          "status": "passed",
+          "expected": "void",
+          "observed": "void",
+          "detail": "check: interface/return/transfer"
+        },
+        {
+          "id": "interface-method-balance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method balance is available",
+          "observed": "present in the fixture `none`",
+          "detail": "check: interface/method/balance"
+        },
+        {
+          "id": "interface-arity-balance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "1 parameter(s)",
+          "observed": "1 parameter(s)",
+          "detail": "check: interface/arity/balance"
+        },
+        {
+          "id": "interface-parameter-balance-0",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/balance/0\nparameter `address`"
+        },
+        {
+          "id": "interface-return-balance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "i128",
+          "observed": "i128",
+          "detail": "check: interface/return/balance"
+        },
+        {
+          "id": "authorization-plan-transfer-without-authorization-fails",
+          "category": "authorization",
+          "status": "passed",
+          "expected": "the call is refused",
+          "observed": "refused",
+          "detail": "check: authorization/plan/transfer-without-authorization-fails\nauthorization path: unauthorized"
+        },
+        {
+          "id": "authorization-outcome-sender-authorizes-transfer-unauthorized",
+          "category": "authorization",
+          "status": "passed",
+          "expected": "refused as `missing-transfer-authorization`",
+          "observed": "refused",
+          "detail": "check: authorization/outcome/sender-authorizes-transfer/unauthorized\nthe profile requires this refusal to be classified as `missing-transfer-authorization`; the classification itself is reported by the failure dimension"
+        },
+        {
+          "id": "event-forbidden-transfer-without-authorization-fails-transfer",
+          "category": "event",
+          "status": "passed",
+          "expected": "no transfer event is emitted",
+          "observed": "0 emitted",
+          "detail": "check: event/forbidden/transfer-without-authorization-fails/transfer"
+        },
+        {
+          "id": "state-holder-unchanged",
+          "category": "state",
+          "status": "passed",
+          "expected": "unchanged at 1000",
+          "observed": "1000 \u2192 1000",
+          "detail": "check: state/holder-unchanged\nreads the balance of `alice`; An unauthorized transfer must not move the holder's balance."
+        },
+        {
+          "id": "state-caller-gains-nothing",
+          "category": "state",
+          "status": "passed",
+          "expected": "unchanged at 0",
+          "observed": "0 \u2192 0",
+          "detail": "check: state/caller-gains-nothing\nreads the balance of `bob`; An unauthorized transfer must not credit the caller."
+        },
+        {
+          "id": "invariant-bounds-balances-are-non-negative-0",
+          "category": "invariant",
+          "status": "passed",
+          "expected": "0 (observed is greater)",
+          "observed": "1000",
+          "detail": "check: invariant/bounds/balances-are-non-negative/0\nmember 0 of `balances`: Every account's balance must be greater than or equal to zero.; Evaluated once against each member of the balance set. A negative balance means value moved out of an account that did not have it, which is the arithmetic signature of an unchecked subtraction or of a missing balance check."
+        },
+        {
+          "id": "invariant-bounds-balances-are-non-negative-1",
+          "category": "invariant",
+          "status": "passed",
+          "expected": "0 (equal)",
+          "observed": "0",
+          "detail": "check: invariant/bounds/balances-are-non-negative/1\nmember 1 of `balances`: Every account's balance must be greater than or equal to zero.; Evaluated once against each member of the balance set. A negative balance means value moved out of an account that did not have it, which is the arithmetic signature of an unchecked subtraction or of a missing balance check."
+        },
+        {
+          "id": "invariant-state-unchanged-failed-transfer-cannot-mutate-0",
+          "category": "invariant",
+          "status": "passed",
+          "expected": "1000",
+          "observed": "1000",
+          "detail": "check: invariant/state_unchanged/failed-transfer-cannot-mutate/0\nWhen a transfer is refused, the contract state must be exactly as it was.: the balance of `alice`; Scoped to the failure outcome of `transfer`, so a contract cannot satisfy it by never failing. A contract that performs the debit and then reports a failure has in practice moved the value while telling the caller it did not, and every consumer that trusts the error path reconstructs a different ledger from the contract's own."
+        },
+        {
+          "id": "invariant-state-unchanged-failed-transfer-cannot-mutate-1",
+          "category": "invariant",
+          "status": "passed",
+          "expected": "0",
+          "observed": "0",
+          "detail": "check: invariant/state_unchanged/failed-transfer-cannot-mutate/1\nWhen a transfer is refused, the contract state must be exactly as it was.: the balance of `bob`; Scoped to the failure outcome of `transfer`, so a contract cannot satisfy it by never failing. A contract that performs the debit and then reports a failure has in practice moved the value while telling the caller it did not, and every consumer that trusts the error path reconstructs a different ledger from the contract's own."
+        },
+        {
+          "id": "failure-outcome-transfer-without-authorization-fails",
+          "category": "failure",
+          "status": "passed",
+          "expected": "the call is refused",
+          "observed": "refused with no contract error code",
+          "detail": "check: failure/outcome/transfer-without-authorization-fails\nThe profile requires this path to be refused for a stated reason (`missing-transfer-authorization`)."
+        },
+        {
+          "id": "failure-signal-missing-transfer-authorization",
+          "category": "failure",
+          "status": "passed",
+          "expected": "signalled by either",
+          "observed": "trapped",
+          "detail": "check: failure/signal/missing-transfer-authorization\nThe payload is implementation-defined, so only the semantic category is required: missing_authorization"
+        },
+        {
+          "id": "failure-state-transfer-without-authorization-fails-0",
+          "category": "failure",
+          "status": "passed",
+          "expected": "1000",
+          "observed": "1000",
+          "detail": "check: failure/state/transfer-without-authorization-fails/0\nthe balance of `alice` must survive the refusal (unchanged)"
+        },
+        {
+          "id": "failure-state-transfer-without-authorization-fails-1",
+          "category": "failure",
+          "status": "passed",
+          "expected": "0",
+          "observed": "0",
+          "detail": "check: failure/state/transfer-without-authorization-fails/1\nthe balance of `bob` must survive the refusal (unchanged)"
+        },
+        {
+          "id": "failure-events-transfer-without-authorization-fails",
+          "category": "failure",
+          "status": "passed",
+          "expected": "no event is emitted",
+          "observed": "0 event(s) observed",
+          "detail": "check: failure/events/transfer-without-authorization-fails\nA refusal that emitted the success event would corrupt every indexer built on the standard, which is the failure this requirement exists to catch."
+        }
+      ],
+      "diagnostics": [
+        {
+          "code": "rule-inapplicable-transfer-moves-the-exact-amount",
+          "message": "the rule describes a path that must succeed and the vector expects failure"
+        },
+        {
+          "code": "rule-inapplicable-transfer-beyond-the-balance-fails",
+          "message": "the vector constructs `missing-transfer-authorization`, which this rule does not describe"
+        },
+        {
+          "code": "authorization-unobservable-sender-authorizes-transfer",
+          "message": "the call was refused rather than completed, so neither the principal the profile requires over `transfer` nor the arguments its signature must cover could be read: the host records what it authenticated, and a refused call unwinds that record. The requirement was not exercised by this vector, and the reason the call was refused is checked by the outcome check below rather than assumed here."
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "interface": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10
+    },
+    "authorization": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10
+    },
+    "events": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10
+    },
+    "behavior": {
+      "passed": 7,
+      "failed": 0,
+      "total": 7
+    },
+    "state": {
+      "passed": 7,
+      "failed": 0,
+      "total": 7
+    },
+    "invariants": {
+      "passed": 5,
+      "failed": 0,
+      "total": 5
+    },
+    "failure": {
+      "passed": 10,
+      "failed": 0,
+      "total": 10
+    }
+  },
+  "status": "CONFORMANT",
+  "exit_code": 0
+}

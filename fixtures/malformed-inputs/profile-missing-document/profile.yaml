@@ -1,0 +1,94 @@
+# MALFORMED: the manifest lists a document that is not in the directory.
+#
+# A bundle that silently tolerated a missing document would evaluate a profile with no
+# authorization requirements and report the contract as conformant against requirements
+# nobody read.
+#
+# The only change from the valid bundle is the line below.
+# yaml-language-server: $schema=../../../../../estamora-conformance-spec/schema/profile.schema.json
+#
+# The profile the runner's own fixtures are measured against.
+#
+# It describes a small part of the token interface the `conformance-token` fixture
+# implements — `transfer` and `balance` — and nothing else. It exists so that the whole
+# pipeline can be exercised without a checkout of `estamora-conformance-spec`: the
+# always-on integration tests run against this bundle and the fixtures, so a change that
+# broke the engine, the evaluator or the report would fail on a machine that had never
+# seen the specification repository.
+#
+# It is not a standard and it is not SEP-41. Where the two disagree, SEP-41 is right and
+# this file is the one with a defect — that is what `profiles/sep-41/1.0/` in the
+# specification repository is for, and the cross-repository tests measure against it.
+# The interface here is a subset with the same argument order and the same semantics,
+# chosen so that one contract can be measured against both.
+estamora_spec_version: "1.0"
+
+profile:
+  id: conformance-token
+  version: "1.0"
+  title: Conformance Token Fixture Interface
+  status: experimental
+  summary: A two-method subset of the token interface, used to exercise the runner end to end.
+  description: >-
+    One mutating method, `transfer`, and one read-only method, `balance`. The bundle
+    states who must authorize a transfer, which arguments that authorization must cover,
+    what a successful transfer must do to both balances, what a rejected transfer must
+    leave behind, the event a successful transfer must emit and what that event must say,
+    and the invariants that must survive either outcome.
+
+    It is deliberately the smallest bundle that exercises all seven conformance
+    dimensions, so that a failure in one integration test names one dimension.
+
+  license: Apache-2.0
+
+  specification:
+    name: FIXTURE-0001
+    title: Conformance Token Fixture Interface
+    version: "1.0"
+    status: draft
+    url: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner
+    updated: "2026-09-15"
+
+  maintainers:
+    - winningtalker-commits
+
+  compatibility:
+    interface: partial
+    notes:
+      - >-
+        The contract under test implements the whole token surface — `approve`,
+        `allowance`, `transfer_from`, `burn`, `burn_from`, `decimals`, `name` and
+        `symbol` as well as the two methods declared here. Declaring only the two means
+        the interface dimension checks those two and says nothing about the rest, which
+        is the honest reading of a partial profile: an undeclared method is not an
+        unrequired one.
+      - >-
+        A partial profile is legitimate for a fixture and wrong for a standard. Any
+        contract certified against this bundle has been measured on two methods, and a
+        report that did not make that visible would overstate what was checked.
+
+  provenance:
+    source: composite
+    derived_from: The SEP-41 method surface, reduced to the subset the fixture exercises
+    interpretation_notes:
+      - >-
+        Every requirement here is a transcription of the corresponding SEP-41
+        requirement, with the pass-through cases removed. Nothing is invented, which is
+        what lets the same contract be conformant under both profiles.
+      - >-
+        The authorization rule binds the signature to the `from` argument rather than to
+        the invoker, because that is the requirement a contract most often gets wrong:
+        requiring *a* signature without requiring the debited account's is exploitable,
+        and a rule stated over the invoker could not detect it.
+
+includes:
+  methods: methods.yaml
+  authorization: authorization-absent.yaml
+  events: events.yaml
+  behavior: behavior.yaml
+  invariants: invariants.yaml
+  failures: failures.yaml
+  vectors:
+    - transfer
+    - balance
+  shared_vectors: []

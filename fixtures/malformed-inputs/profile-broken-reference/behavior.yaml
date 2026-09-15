@@ -1,0 +1,117 @@
+# MALFORMED: a behavioural rule requires an event that no document declares.
+#
+# A cross-reference that does not resolve is an error rather than a warning, because the
+# requirement it appears in cannot be evaluated: reporting a verdict against a rule that
+# was silently not applied is the failure mode this project exists to prevent.
+#
+# The only change from the valid bundle is the `expect_events` entry below.
+# yaml-language-server: $schema=../../../../../estamora-conformance-spec/schema/behavior.schema.json
+behaviors:
+  - id: transfer-moves-the-exact-amount
+    summary: A successful transfer debits the sender and credits the recipient by the exact amount.
+    description: >-
+      Stated as a delta against each balance read through the interface rather than as an
+      absolute value, so it holds for every starting balance. A contract that credits a
+      rounded amount, keeps a fee, or credits a different account passes every "the call
+      succeeded" check while losing value for its users, and only the two deltas together
+      catch it: a contract that debits 250 and credits 249 passes a check on the sender
+      alone and passes a check on the recipient alone if the recipient is only required to
+      increase.
+    method: transfer
+    kind: success
+    preconditions:
+      - kind: greater_than
+        left:
+          kind: input
+          name: amount
+        right:
+          kind: literal
+          value: "0"
+    postconditions:
+      - kind: delta
+        target:
+          kind: read
+          method: balance
+          args:
+            - kind: input
+              name: from
+        direction: decrease
+        by:
+          kind: input
+          name: amount
+      - kind: delta
+        target:
+          kind: read
+          method: balance
+          args:
+            - kind: input
+              name: to
+        direction: increase
+        by:
+          kind: input
+          name: amount
+    expect_failures: []
+    expect_events:
+      - approve
+    forbid_events: []
+    invariants:
+      - balances-are-conserved-by-transfer
+      - balances-are-non-negative
+    notes:
+      - >-
+        The precondition is stated over the argument rather than assumed, so a transfer of
+        zero is excluded from the rule instead of making it silently untrue. A vector that
+        transfers nothing is still measured — by the failure rules, by the authorization
+        rules and by the invariants — and its exclusion here is recorded as inapplicable
+        rather than counted as a pass.
+
+  - id: transfer-beyond-the-balance-fails
+    summary: A transfer above the sender's balance must be refused and leave both balances alone.
+    description: >-
+      A contract that permits an overdraft produces a negative balance, which is not a
+      quantity the interface can represent and which every later read of that account
+      reports wrongly. The postconditions are stated as well as the must-fail rule because
+      a contract can refuse the call and still have debited the sender first: Soroban rolls
+      the write back, so the state requirement is what makes the requirement explicit
+      rather than incidental.
+    method: transfer
+    kind: failure
+    preconditions:
+      - kind: greater_than
+        left:
+          kind: input
+          name: amount
+        right:
+          kind: read
+          method: balance
+          args:
+            - kind: input
+              name: from
+    postconditions:
+      - kind: unchanged
+        target:
+          kind: read
+          method: balance
+          args:
+            - kind: input
+              name: from
+      - kind: unchanged
+        target:
+          kind: read
+          method: balance
+          args:
+            - kind: input
+              name: to
+    expect_failures:
+      - insufficient-transfer-balance
+    expect_events: []
+    forbid_events:
+      - transfer
+    invariants:
+      - failed-transfer-cannot-mutate
+    notes:
+      - >-
+        The precondition compares the requested amount against the sender's balance as the
+        vector declared it, so the rule applies exactly to the vectors that construct an
+        over-balance transfer and to no others. A rule that applied to every failure would
+        require an unauthorized transfer to be classified as an insufficient balance.

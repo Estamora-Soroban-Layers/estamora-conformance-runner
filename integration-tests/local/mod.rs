@@ -178,6 +178,113 @@ fn a_bundle_that_does_not_resolve_is_a_profile_error_rather_than_an_empty_run() 
 }
 
 #[test]
+fn a_profile_declaring_a_format_this_runner_cannot_execute_is_refused() {
+    let bundle = harness::bundle_with("profile-wrong-spec-version");
+    let problem = harness::run_bundle(&harness::bundle_root(&bundle), "none")
+        .expect_err("a specification format that is not implemented must not be executed");
+    assert_eq!(problem.class(), ErrorClass::ProfileError);
+    assert_eq!(error_exit_code(&problem), ExitCode::SpecificationInvalid);
+    assert!(
+        problem.message().contains("99.0"),
+        "the refusal must name the version it cannot read: {problem}"
+    );
+}
+
+#[test]
+fn a_profile_that_lists_a_document_it_does_not_have_is_refused() {
+    // Tolerating this would evaluate a profile with no authorization requirements at all
+    // and report a contract conformant against requirements nobody read.
+    let bundle = harness::bundle_with("profile-missing-document");
+    let problem = harness::run_bundle(&harness::bundle_root(&bundle), "none")
+        .expect_err("a manifest that names an absent document must not be executed");
+    assert_eq!(problem.class(), ErrorClass::ProfileError);
+    assert_eq!(error_exit_code(&problem), ExitCode::SpecificationInvalid);
+    assert!(
+        problem.message().contains("authorization-absent.yaml"),
+        "the refusal must name the document that is missing: {problem}"
+    );
+}
+
+#[test]
+fn a_cross_reference_that_does_not_resolve_is_an_error_and_not_a_warning() {
+    // The requirement this rule states cannot be evaluated, so applying the profile
+    // without it would report a verdict against something that was never applied — the
+    // failure mode the whole project exists to prevent.
+    let bundle = harness::bundle_with("profile-broken-reference");
+    let problem = harness::run_bundle(&harness::bundle_root(&bundle), "none")
+        .expect_err("a requirement naming something undeclared must not be executed");
+    assert_eq!(problem.class(), ErrorClass::ProfileError);
+    assert_eq!(error_exit_code(&problem), ExitCode::SpecificationInvalid);
+}
+
+#[test]
+fn a_vector_with_no_expected_outcome_is_a_corpus_error() {
+    // A different class from an unusable profile, and it has to be: the requirements are
+    // readable, and the document that describes what to measure against them is not.
+    let bundle = harness::bundle_with("vector-missing-field");
+    let problem = harness::run_bundle(&harness::bundle_root(&bundle), "none")
+        .expect_err("a vector with no expected outcome must not be executed");
+    assert_eq!(problem.class(), ErrorClass::VectorError);
+    assert_eq!(error_exit_code(&problem), ExitCode::SpecificationInvalid);
+}
+
+#[test]
+fn a_valid_bundle_with_a_valid_overlay_is_still_a_valid_bundle() {
+    // The control for the four tests above: they would all pass if copying the bundle
+    // broke it. This one copies nothing and runs, so a failure in the four is
+    // attributable to the document they added.
+    let bundle = harness::bundle_with("profile-wrong-spec-version");
+    let root = harness::bundle_root(&bundle);
+    assert!(root.join("profile.yaml").is_file());
+    assert!(
+        root.join("vectors/transfer/transfer-moves-the-exact-amount.yaml")
+            .is_file()
+    );
+    assert!(
+        root.join("vectors/balance/balance-is-reported.yaml")
+            .is_file()
+    );
+}
+
+#[test]
+fn a_stored_report_is_re_renderable_and_re_reads_identically() {
+    // The artefact a receipt commits to and that another tool consumes. A stored report
+    // that could not be read back is a verification that cannot be performed offline,
+    // which is the only situation a receipt is for.
+    let text = std::fs::read_to_string(harness::stored_report_path()).unwrap();
+    let stored: estamora_report::Report = serde_json::from_str(&text)
+        .unwrap_or_else(|problem| panic!("the stored report is not readable: {problem}"));
+    assert_eq!(stored.status, ConformanceStatus::Conformant);
+    assert_eq!(stored.exit_code, 0);
+    assert_eq!(stored.profile.id, "conformance-token");
+    assert_eq!(stored.vectors.count, 4);
+    assert_eq!(stored.summary.total(), 59);
+
+    let rendered = estamora_report::render_markdown(&stored).unwrap();
+    assert!(rendered.contains("CONFORMANT"));
+    assert!(rendered.contains("conformance-token@1.0"));
+    let junit = estamora_report::render_junit(&stored).unwrap();
+    assert!(junit.contains("tests=\"4\""));
+}
+
+#[test]
+fn a_document_that_is_not_a_report_is_refused_rather_than_read_as_one() {
+    let text =
+        std::fs::read_to_string(harness::malformed_inputs_root().join("report-not-a-report.json"))
+            .unwrap();
+    let problem =
+        estamora_report::parse(&text).expect_err("valid JSON is not a conformance report");
+    // The class is the claim that matters, and it is the one the taxonomy reserves for a
+    // document that is not what it was handed as. The exit code follows the published
+    // contract rather than this test's preference: `REPORT_ERROR` is not a specification
+    // problem, an environment problem or a verdict about a contract, so it maps to `5`
+    // and a script must never read it as a non-conformant contract.
+    assert_eq!(problem.class(), ErrorClass::ReportError);
+    assert_eq!(error_exit_code(&problem), ExitCode::InternalError);
+    assert_ne!(error_exit_code(&problem), ExitCode::NonConformant);
+}
+
+#[test]
 fn the_sep_41_profile_is_conformant_against_the_fixture_when_the_specification_is_available() {
     // The cross-repository half of the same question, run only where the specification
     // repository has been checked out beside this one. It is the test that would catch a

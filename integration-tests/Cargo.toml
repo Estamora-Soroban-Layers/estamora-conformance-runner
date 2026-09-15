@@ -36,8 +36,6 @@ estamora-core = { path = "../crates/estamora-core" }
 estamora-report = { path = "../crates/estamora-report" }
 estamora-vectors = { path = "../crates/estamora-vectors" }
 serde_json = { workspace = true }
-
-[dev-dependencies]
 tempfile = { workspace = true }
 
 # One target per conformance dimension, so that a failure names the dimension it is

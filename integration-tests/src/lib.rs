@@ -1,5 +1,11 @@
 //! The harness the end-to-end tests share.
 //!
+//! Three kinds of question are answered here. What a run against an in-repository
+//! fixture concluded, which the dimension tests use. What a run does with a document
+//! that is wrong, which the malformed-input tests use and which needs a temporary copy
+//! of the bundle to answer. And what a *stored* report re-renders to, which the report
+//! and receipt tests use.
+//!
 //! Everything here is a way of asking the runner a question and reading the answer
 //! through the same API a user drives. Nothing reaches into a crate's internals, so a
 //! test written against this harness fails when the *product* breaks rather than when
@@ -13,6 +19,8 @@
 
 use std::path::{Path, PathBuf};
 
+pub use tempfile::TempDir;
+
 use estamora_cli::RunOutcome;
 use estamora_cli::engine::Target;
 use estamora_core::{AssertionStatus, ConformanceStatus};
@@ -25,6 +33,12 @@ use estamora_report::Report;
 /// and `balance` requirements for the subset it covers, and the tests that need the
 /// real standard are the cross-repository ones.
 pub const FIXTURE_PROFILE: &str = "conformance-token@1.0";
+
+/// Where the malformed documents live, each laid out at the path it occupies in a bundle.
+#[must_use]
+pub fn malformed_inputs_root() -> PathBuf {
+    fixture_spec_root().join("malformed-inputs")
+}
 
 /// The repository root, derived from this crate's own directory.
 ///
@@ -132,6 +146,74 @@ pub fn run_bundle(path: &Path, defect: &str) -> estamora_core::Result<RunOutcome
         fixture_spec_root(),
         target,
     ))
+}
+
+/// The stored report produced by a known run against the conforming fixture.
+///
+/// Its timestamp is pinned, so the document is stable and a test can assert that reading
+/// and re-rendering it reproduces it byte for byte. A fixture whose own content moved
+/// between runs could not pin anything.
+#[must_use]
+pub fn stored_report_path() -> PathBuf {
+    repo_root().join("fixtures/expected-reports/conformant-transfer.json")
+}
+
+/// A temporary copy of the fixture bundle with one of the malformed documents over it.
+///
+/// The returned guard owns the directory, so the caller does not have to remove it and a
+/// failed assertion cannot leave it behind.
+///
+/// # Panics
+///
+/// Aborts when the bundle or the named fixture cannot be copied, which is a defect in the
+/// fixture set rather than a result about a contract.
+#[must_use]
+pub fn bundle_with(case: &str) -> TempDir {
+    let directory = TempDir::new()
+        .unwrap_or_else(|problem| panic!("a temporary directory could not be created: {problem}"));
+    let root = directory.path().join("bundle");
+    copy_tree(&fixture_profile_root(), &root);
+    copy_tree(&malformed_inputs_root().join(case), &root);
+    directory
+}
+
+/// The bundle directory inside the guard [`bundle_with`] returned.
+#[must_use]
+pub fn bundle_root(directory: &TempDir) -> PathBuf {
+    directory.path().join("bundle")
+}
+
+/// Copies a directory tree, creating the destination and its parents.
+///
+/// Iterative rather than recursive, and it does not follow a symlink out of the tree it
+/// was given: a fixture set that could be made to walk outside its own directory would be
+/// a way to make a test read something it did not name.
+fn copy_tree(from: &Path, to: &Path) {
+    let mut pending = vec![(from.to_path_buf(), to.to_path_buf())];
+    while let Some((source, destination)) = pending.pop() {
+        if source.is_dir() {
+            std::fs::create_dir_all(&destination).unwrap_or_else(|problem| {
+                panic!("{} could not be created: {problem}", destination.display())
+            });
+            let entries = std::fs::read_dir(&source).unwrap_or_else(|problem| {
+                panic!("{} could not be read: {problem}", source.display())
+            });
+            for entry in entries {
+                let entry = entry.unwrap_or_else(|problem| {
+                    panic!("{} could not be listed: {problem}", source.display())
+                });
+                pending.push((entry.path(), destination.join(entry.file_name())));
+            }
+            continue;
+        }
+        std::fs::copy(&source, &destination).unwrap_or_else(|problem| {
+            panic!(
+                "{} could not be copied to {}: {problem}",
+                source.display(),
+                destination.display()
+            )
+        });
+    }
 }
 
 /// The run's verdict.
