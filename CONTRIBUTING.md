@@ -62,6 +62,45 @@ Two rules are enforced by review and by the layering itself:
   outside the observation cannot be evaluated, and adding the fact is a change to
   what is observed rather than a lookup inside an evaluator.
 
+### Where a named module lives
+
+If you are looking for one of the module names the project description uses, this is
+the correspondence. The architecture was built to the description, but a few modules
+were placed where they belong rather than where a file listing would put them, and the
+names below are what they are called here.
+
+| Named module | Implemented as | Why |
+| --- | --- | --- |
+| `estamora-cli/src/errors.rs` | itself | |
+| `estamora-cli/src/config.rs`, `output.rs` | themselves | |
+| `estamora-cli/src/commands/*.rs` | themselves | |
+| `estamora-core/src/engine.rs`, `execution.rs`, `context.rs` | `estamora-cli/src/engine/` (`target.rs`, `scenario.rs`, `observe.rs`, `record.rs`, `values.rs`) | The engine drives a host, so it cannot live in the crate that must stay usable without one. `engine/target.rs` is context and target resolution, `scenario.rs` is one vector's execution, `observe.rs` and `record.rs` capture the two worlds. |
+| `estamora-core/src/assertions.rs` | `estamora-assertions` | A whole crate rather than a module, for the same reason. |
+| `estamora-core/src/outcomes.rs`, `errors.rs`, `lib.rs` | themselves | |
+| `estamora-profile/src/parser.rs` | `documents.rs` | Parsing is per-document and its result is the typed document set. |
+| `estamora-profile/src/validator.rs` | `references.rs`, `spec.rs` | Cross-references and format-version checks are two different refusals. |
+| `estamora-profile/src/resolver.rs` | `loader.rs` | Resolving a bundle's paths is what loading it means. |
+| `estamora-profile/src/types.rs`, `lib.rs` | themselves | |
+| `estamora-soroban/src/simulator.rs` | `host.rs` | It is not a simulator: it is a real host at a pinned ledger point. |
+| `estamora-soroban/src/interface.rs` | `inspect.rs` | Inspection reads the spec section out of WebAssembly. |
+| `estamora-soroban/src/storage.rs` | `world.rs` | Storage is read through `estamora-core`'s `World`, in the vector's vocabulary. |
+| `estamora-soroban/src/client.rs`, `invoker.rs`, `events.rs`, `auth.rs`, `errors.rs`, `lib.rs` | themselves | |
+| `estamora-vectors/src/resolver.rs` | `loader.rs`, `model.rs` | A vector's operation and its shared families are resolved while loading. |
+| `estamora-vectors/src/generator.rs` | *not implemented* | Nothing generates vectors. A vector is a specification artifact authored by a person; a generator would put the runner in the position of proposing what a profile requires. |
+| `estamora-vectors/src/loader.rs`, `lib.rs` | themselves, with `integer.rs` and `validate.rs` | |
+| `estamora-assertions/src/interface.rs`, `authorization.rs`, `events.rs`, `state.rs`, `failures.rs`, `invariants.rs` | `src/dimensions/*.rs`, same six names | Kept in one directory so that the set of dimensions is visible as a set, and so that `dimensions/mod.rs` is the one place their fixed evaluation order is written. |
+| `estamora-assertions/src/lib.rs` | itself, with `eval.rs`, `run.rs`, `observation.rs`, `outcome.rs` | |
+| `estamora-report/src/formatter.rs` | `render.rs` for the shared helpers; the format dispatch is `estamora-cli/src/commands/mod.rs` (`Format::render`) | A formatter trait would need three implementations and have one caller. Which rendering to produce is a command-line decision, so it is decided where the command line is read, and what the renderers genuinely share — safe interpolation and appending — is what `render.rs` factors out. |
+| `estamora-report/src/summary.rs` | `model.rs` (`Summary`) | The summary is part of the document, not a view of it. |
+| `estamora-report/src/model.rs`, `json.rs`, `markdown.rs`, `junit.rs`, `lib.rs` | themselves | |
+| `estamora-certification/src/receipt.rs`, `digest.rs`, `signing.rs`, `verification.rs`, `lib.rs` | themselves | |
+
+Renaming a module to match a name in the description is not a change this project
+makes on its own: a rename that moves no behaviour is a diff every reviewer has to
+read and none can verify, and the table above is the smaller cost. What the table
+does not do is excuse a module that *should* exist — the one entry marked *not
+implemented* is there because nothing needs it, not because it was skipped.
+
 ## Building and testing
 
 ```console
