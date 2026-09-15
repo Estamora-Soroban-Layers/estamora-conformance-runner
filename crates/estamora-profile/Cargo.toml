@@ -1,0 +1,23 @@
+[package]
+name = "estamora-profile"
+description = "Loads, gates and resolves the profile bundles the Estamora conformance runner executes."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+estamora-core = { path = "../estamora-core" }
+serde = { workspace = true }
+serde_yaml_ng = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
