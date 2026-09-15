@@ -139,6 +139,26 @@ The limit exists so that an oversized file is a resolution error rather than an
 allocation. A Soroban contract is orders of magnitude smaller than this; if you hit
 it, you are probably pointing at the wrong file.
 
+## A `.wasm` declares a constructor that takes arguments
+
+```text
+CONTRACT_RESOLUTION_ERROR: the artifact ./my_token.wasm declares a constructor taking
+admin: address, decimal: u32, and a constructor can only be run by whoever deployed the
+contract: only the deployer knew what to pass it. … No instance can be created locally,
+so nothing about this contract's behaviour was observed
+  reason: constructor-needs-arguments
+```
+
+Registering an artifact runs its `__constructor`, and the environment has no arguments
+to give it. The runner refuses rather than inventing them, because a contract placed in
+a state the runner made up is measured against that invention and not against the
+contract anybody deployed. Exit `4`: the environment is at fault, not the contract.
+
+It applies to the `.wasm` path only. Measuring the same contract by identifier —
+`--contract <id> --network <network>` — places it in the ledger from its deployed
+instance entry and never runs its constructor, whatever the constructor took.
+`docs/local-testing.md` and `docs/testnet-testing.md` have the two halves.
+
 ## A vector was skipped
 
 ```text

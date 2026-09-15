@@ -35,32 +35,38 @@ the runner would measure an artifact that is not the one deployed. A disagreemen
 | A node that cannot be reached | `NETWORK_ERROR` | `network-unreachable` | 4 |
 | A well-formed identifier that is not on that network | `CONTRACT_RESOLUTION_ERROR` | `contract-not-found` | 4 |
 | A Stellar Asset Contract | `CONTRACT_RESOLUTION_ERROR` | `host-implemented-contract` | 4 |
-| An artifact whose constructor takes arguments | `CONTRACT_RESOLUTION_ERROR` | `constructor-needs-arguments` | 4 |
 
 None of these is a verdict, and none exits `1`. A network failure and a non-conformant
 contract have nothing in common, and a CI job that conflated them would train its users
 to ignore it.
 
-## The constructor boundary
+## The contract's constructor is never run
 
-Instantiating an artifact runs its `__constructor`, and no environment supplies the
-arguments a deployed contract's constructor took — only its deployer knew them. The
-runner refuses such an artifact by name rather than inventing plausible arguments,
-because inventing them would fabricate the very state the vectors are then measured
-against:
+Instantiating an artifact locally runs its `__constructor`, and no environment can supply
+the arguments a deployed contract's constructor took — only its deployer knew them.
+Measuring a deployed contract does not need to.
 
-```console
-CONTRACT_RESOLUTION_ERROR: contract CAYPA…HXH2JA on `testnet` as read from
-https://soroban-testnet.stellar.org declares a constructor taking admin: address,
-fee_recipient: address, and a constructor can only be run by whoever deployed the
-contract: only the deployer knew what to pass it.
-  reason: constructor-needs-arguments
-```
+Resolving a contract already reads its **instance ledger entry**, because that is where
+the code hash it declares lives. That same entry carries the instance storage the
+constructor wrote: the admin, the decimals, the symbol. It is therefore the state the
+contract is actually running in, and there is nothing for a local constructor to
+reproduce.
 
-This is the honest boundary of local re-execution, and it is a real one: a contract
-whose constructor takes arguments cannot be instantiated locally, so nothing about its
-behaviour can be concluded from this runner. A contract with no constructor, or one
-that takes none, is measured normally.
+So a deployed contract is not redeployed. Its code and its instance entry are placed in a
+ledger assembled from the network's own answer, and the host is built from that ledger.
+Nothing runs the constructor, the contract is reachable at the identifier the network
+serves it at rather than at a generated address, and the measurement starts from the
+contract's own configuration rather than from an empty instance.
+
+The two entries have to agree. If the instance entry names a code hash the fetched
+artifact does not hash to, the run stops with `reason: artifact-hash-mismatch` and exits
+`4`, because a ledger inconsistent with itself says nothing about any contract.
+
+This is why a contract whose constructor takes arguments is measurable here at all.
+The constructor boundary still exists, but it belongs to the `.wasm` path: a file on disk
+carries no instance entry to place in the ledger, so an artifact whose constructor
+declares arguments is reported with `reason: constructor-needs-arguments` rather than
+measured against a state the runner invented. See `docs/local-testing.md`.
 
 ## Seeding is unavailable on a network target
 

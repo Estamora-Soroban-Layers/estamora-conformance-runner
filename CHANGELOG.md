@@ -41,6 +41,29 @@ incorrect verdict is fixed rather than preserved.
 
 ## [Unreleased]
 
+### Added
+
+* **A deployed contract is measured from its own instance ledger entry** rather than
+  redeployed. Resolving a contract already reads that entry, and it carries the instance
+  storage the constructor wrote, so the code and the entry are placed in a ledger built
+  from the network's answer and the host is built from it. Nothing runs the constructor,
+  and the contract is reachable at the identifier the network serves it at. A contract
+  whose constructor takes arguments is consequently measurable.
+* **`LocalHost::holding`**, which assembles a host around an artifact and the instance
+  entry that names it, refusing a pair that does not agree.
+
+### Changed
+
+* **`target::deploy` returns the host along with the deployment.** A remote target is not
+  deployed *into* a host, it *is* the host, so the caller has to measure in the ledger the
+  contract was placed in.
+
+### Removed
+
+* **`reason: constructor-needs-arguments` no longer applies to a deployed contract.** It
+  remains the outcome for a `.wasm` file whose constructor declares arguments, which is
+  the path that has no instance entry to place in the ledger.
+
 ## [0.1.0]
 
 ### Added
@@ -86,12 +109,14 @@ incorrect verdict is fixed rather than preserved.
 
 ### Known limitations
 
-* **A constructor that takes arguments cannot be run.** Instantiating an artifact runs
-  its `__constructor`, and no environment supplies the arguments a deployed contract's
-  constructor took — only its deployer knew them. The runner refuses such an artifact
-  with `reason: constructor-needs-arguments` and exits `4`, rather than inventing
-  arguments and fabricating the state the vectors are then measured against. A
-  contract with no constructor, or one that takes none, is measured normally.
+* **A `.wasm` file whose constructor takes arguments cannot be registered.**
+  Instantiating a local artifact runs its `__constructor`, and no environment supplies
+  the arguments a deployed contract's constructor took — only its deployer knew them. The
+  runner refuses such an artifact with `reason: constructor-needs-arguments` and exits
+  `4`, rather than inventing arguments and fabricating the state the vectors are then
+  measured against. A contract with no constructor, or one that takes none, is measured
+  normally, and a **deployed** contract is measured from its own instance ledger entry
+  regardless of what its constructor took.
 * **Opening state cannot be established for an arbitrary artifact.** A vector that
   declares an opening balance is `skipped` against a `.wasm` target, with the reason,
   and the run becomes `INCONCLUSIVE`. Establishing it needs a declaration the

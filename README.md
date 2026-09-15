@@ -51,13 +51,13 @@ This section is kept accurate rather than aspirational. What exists and is teste
 | Crate | State |
 | --- | --- |
 | `estamora-core` | **Implemented.** The error taxonomy, the six conformance statuses, the rule that reduces vector results to a verdict, and the exit-code contract. |
-| `estamora-soroban` | **Implemented for local execution.** A deterministic host pinned to a declared ledger point, contract registration from WebAssembly or an in-repository fixture, invocation with outcome classification, event capture, and authorization as a scenario property with the demanded authorizations recorded. Interface inspection reads a compiled contract's `contractspecv0` spec section — the only source that describes a contract the runner has never seen — with a hand-written WebAssembly section reader and XDR decoder. Reads against a deployed contract are answered through `estamora-core`'s `World`, in the vector's own vocabulary, so a failing requirement names `alice` rather than a base-32 address. |
+| `estamora-soroban` | **Implemented for local execution.** A deterministic host pinned to a declared ledger point; a contract placed in it either by registration from WebAssembly or an in-repository fixture, or by holding it from the instance ledger entry a network reports; invocation with outcome classification, event capture, and authorization as a scenario property with the demanded authorizations recorded. Interface inspection reads a compiled contract's `contractspecv0` spec section — the only source that describes a contract the runner has never seen — with a hand-written WebAssembly section reader and XDR decoder. Reads against a deployed contract are answered through `estamora-core`'s `World`, in the vector's own vocabulary, so a failing requirement names `alice` rather than a base-32 address. |
 | `estamora-profile` | **Implemented.** Loads a bundle, refuses a specification format it cannot execute, refuses a manifest entry that escapes the bundle or a document that is oversized, parses all six documents into typed structures, checks every cross-reference between them, keeps a valid bundle's warnings rather than discarding them, and refuses a bundle stored under an identity other than the one it declares. |
 | `estamora-vectors` | **Implemented.** Loads the corpus a profile declares — its own operation directories plus the shared families it consumes — checks every vector against the profile it was found under, and excludes a profile-independent vector whose method the profile does not implement rather than inventing a defect. |
 | `estamora-certification` | **Implemented.** Issues a receipt committing to a result — the pinned profile and corpus digests, the target, the verdict, per-dimension tallies and the digest of the report — and verifies one. Verification answers two questions separately: whether the report shown is the one the receipt is about (no key needed), and who asserted it (a key the caller already trusts). A signature checked against a key carried in the same document is reported as *unattributed*, never as verified. No on-chain publishing is implemented, deliberately. |
 | `estamora-report` | **Implemented.** Renders a run as JSON, Markdown and `JUnit`, with the JSON document mirroring the specification's report schema field for field. A report this crate produces validates against the published schema, asserted by a cross-repository test. Contract-supplied metadata is sanitised before it reaches a rendered document, and the identifier grammar the schema imposes is satisfied by normalising internal check names and keeping the original in the detail field. |
 | `estamora-assertions` | **Implemented.** Interprets every value expression and predicate the format defines — comparisons, relative changes, aggregates over a resource set, arithmetic, composites — against a `World` trait that abstracts the execution environment, and evaluates all seven conformance dimensions for one vector: interface compatibility, authorization, events, behaviour, state, invariants and failure. A requirement that could not be evaluated produces an undecidable vector rather than a failed one. |
-| `estamora-cli` | **Implemented.** The `estamora` binary and the engine behind it: resolves a target (an in-repository fixture, a `.wasm` artifact, or a deployed contract and network), deploys it, builds the vector's declared world, seeds it through the fixture entry points, applies the vector's authorization plan, invokes the method, records the before-and-after worlds, evaluates all seven dimensions, reduces the run to a verdict, and renders it as text, JSON, Markdown or JUnit. Six commands: `run`, `inspect`, `profile`, `validate`, `report`, `certify`. |
+| `estamora-cli` | **Implemented.** The `estamora` binary and the engine behind it: resolves a target (an in-repository fixture, a `.wasm` artifact, or a deployed contract and network), places it in a host, builds the vector's declared world, seeds it through the fixture entry points, applies the vector's authorization plan, invokes the method, records the before-and-after worlds, evaluates all seven dimensions, reduces the run to a verdict, and renders it as text, JSON, Markdown or JUnit. Six commands: `run`, `inspect`, `profile`, `validate`, `report`, `certify`. |
 
 A **deployed contract** is measured, not merely identified. `--contract <id> --network <net>`
 resolves the identifier over RPC to the WebAssembly the contract is running, verifies that the
@@ -66,13 +66,27 @@ bytes in the local host exactly as a `.wasm` file on disk is measured. No funded
 needed, no transaction is submitted, and a shared ledger cannot change the answer half way
 through a corpus.
 
+It is not redeployed to get there. Resolving a contract reads its **instance ledger entry**
+— the entry that carries the code hash it declares — and that entry also carries the instance
+storage its constructor wrote. The code and the entry are therefore placed in a ledger built
+from the network's own answer and the host is built from it, so the constructor never runs, the
+contract is reachable at the identifier the network serves it at, and it is measured in the
+configuration the network has rather than an empty one. A contract whose constructor takes
+arguments is consequently measurable, which it would not be if the runner had to run one.
+
 Every way of *not* reading a contract is an environment failure that exits `4` and never `1`:
-an unreachable endpoint is `NETWORK_ERROR`, an identifier that does not exist is
-`CONTRACT_RESOLUTION_ERROR` with `reason: contract-not-found`, and an artifact whose
-constructor takes arguments nobody can supply is `reason: constructor-needs-arguments`. A CI
-job retries them or files them as infrastructure and never reads them as a contract that
-failed its profile. `--network` accepts `testnet` and `mainnet`; any other endpoint is named
-with `ESTAMORA_RPC_URL`.
+an unreachable endpoint is `NETWORK_ERROR`; an identifier that does not exist is
+`CONTRACT_RESOLUTION_ERROR` with `reason: contract-not-found`; a Stellar Asset Contract, whose
+behaviour is the host's rather than a deployed artifact's, is `reason: host-implemented-contract`;
+and an instance entry that disagrees with the artifact it was fetched with is
+`reason: artifact-hash-mismatch`. A CI job retries them or files them as infrastructure and
+never reads them as a contract that failed its profile. `--network` accepts `testnet` and
+`mainnet`; any other endpoint is named with `ESTAMORA_RPC_URL`.
+
+A `.wasm` file on disk has no instance entry, so that path registers the artifact instead,
+which runs a constructor it can run. One that declares arguments nobody can supply is reported
+as `reason: constructor-needs-arguments` rather than passed invented ones: fabricating them
+would fabricate the very state the vectors are then measured against.
 
 ### Two facts about Soroban execution that shape the design
 

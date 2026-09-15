@@ -83,6 +83,37 @@ and it is not something this runner will invent on its own. Until it exists, a
 contract being measured locally is measured through the fixture target, or through a
 profile whose vectors need no opening state.
 
+### The second limit: a constructor that takes arguments
+
+A `.wasm` file is deployed by registering it, and registering an artifact runs its
+`__constructor`. The environment has no arguments to give it, and a constructor's
+arguments are the deployer's decision — an admin address, a fee recipient, a decimal
+scale. The runner will not invent them, because a contract placed in a state the
+runner made up is no longer the contract anybody deployed, and every requirement
+measured against it would be measured against that invention.
+
+So an artifact whose constructor declares arguments is refused, by name and with the
+arguments it wanted:
+
+```console
+CONTRACT_RESOLUTION_ERROR: the artifact ./my_token.wasm declares a constructor
+ taking admin: address, decimal: u32, and a constructor can only be run by whoever
+ deployed the contract: only the deployer knew what to pass it. The runner will not
+ invent arguments, because doing so would fabricate the very state the vectors are
+ then measured against. No instance can be created locally, so nothing about this
+ contract's behaviour was observed
+  reason: constructor-needs-arguments
+```
+
+That is a resolution failure — exit `4`, the environment at fault — and not a verdict
+about the contract. An artifact with no constructor, or one that takes no arguments,
+is registered and measured normally.
+
+This limit belongs to the `.wasm` path specifically. A contract read from a network is
+never registered: its deployed instance ledger entry is placed in the ledger instead,
+so its constructor — whatever its arguments — is never run. See
+`docs/testnet-testing.md`.
+
 ## The local host is not a mock
 
 `fixtures/contracts/` are compiled to real Wasm by the same Soroban SDK a user's

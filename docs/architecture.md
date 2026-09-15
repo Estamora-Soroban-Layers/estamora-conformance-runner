@@ -82,7 +82,8 @@ and produce the same document.
    inspect the interface             -> one dimension, not a verdict
         |
    for each vector:
-        |  deploy the contract into a fresh host
+        |  place the contract in a fresh host: registered from its bytes, or
+        |  held from the instance entry a network reports for it
         |  seed the world the vector declares
         |  take the before-world
         |  invoke the operation with the declared authorization
@@ -97,11 +98,13 @@ and produce the same document.
    exit with one of seven codes
 ```
 
-The per-vector loop deploys into a **fresh host**. A run is not a sequence of
-operations on one contract instance, because a vector's declared starting state is
-a claim about the world the operation sees, and inheriting a previous vector's
-mutations would make the corpus order-dependent. Order-dependence is how a suite
-starts passing for the wrong reason.
+The per-vector loop builds a **fresh host**, and which host depends on the target. A
+target on disk or in the repository is deployed into it; a target on a network *is* it,
+because a deployed contract is placed in a ledger assembled from its own instance entry
+rather than redeployed. Either way a run is not a sequence of operations on one contract
+instance, because a vector's declared starting state is a claim about the world the
+operation sees, and inheriting a previous vector's mutations would make the corpus
+order-dependent. Order-dependence is how a suite starts passing for the wrong reason.
 
 `docs/execution-engine.md` goes through the loop in detail, including what happens
 when a contract call is refused and why the authorization dimension then reports a
