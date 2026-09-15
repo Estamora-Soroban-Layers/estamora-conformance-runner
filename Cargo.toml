@@ -1,0 +1,115 @@
+# Estamora conformance runner — Cargo workspace.
+#
+# The crates are layered so that each one depends only on the layers below it:
+#
+#   estamora-core         error taxonomy, outcomes, engine, assertions
+#   estamora-profile      loads and validates bundles produced by the spec repo
+#   estamora-vectors      loads and resolves the vector corpus
+#   estamora-soroban      talks to Soroban: contracts, invocations, events, auth
+#   estamora-assertions   evaluates a profile requirement against an observation
+#   estamora-report       renders results as JSON, Markdown and JUnit
+#   estamora-certification digests, receipts and receipt verification
+#   estamora-cli          the `estamora` binary
+#
+# Nothing below `estamora-soroban` may depend on it: the specification-consuming
+# and reporting layers must stay usable — and testable — without a network or an
+# execution environment.
+
+[workspace]
+resolver = "3"
+members = [
+  "crates/estamora-core",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "Apache-2.0"
+repository = "https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner"
+homepage = "https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner"
+authors = ["Estamora contributors"]
+keywords = ["stellar", "soroban", "conformance", "testing"]
+categories = ["development-tools::testing"]
+
+# Dependency versions are declared once, here, and pinned in Cargo.lock. They are
+# pinned deliberately: an unpinned validator or SDK changes the meaning of a
+# passing run without any profile changing, which is exactly the kind of drift
+# this project exists to make visible.
+#
+# Versions are chosen to agree with the Soroban SDK rather than to be newest.
+# soroban-sdk 27 depends on sha2 ^0.10 and ed25519-dalek ^2, so the runner uses
+# the same majors; mixing them would produce two incompatible copies of the
+# crypto types and a type error at every boundary.
+[workspace.dependencies]
+# Error and serialization
+anyhow = "1.0.104"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.151"
+thiserror = "2.0.20"
+# YAML is read with a maintained fork of the unmaintained `serde_yaml`.
+serde_yaml_ng = "0.10.0"
+# CLI and output
+clap = { version = "4.6.7", features = ["derive", "env", "wrap_help"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter", "json"] }
+# Encoding and identity
+sha2 = "0.10.9"
+hex = "0.4.3"
+ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
+base64 = "0.22.1"
+# Time is fixed at the boundary: the runner records an instant, it never
+# schedules anything.
+time = { version = "0.3.45", features = ["formatting", "parsing", "serde"] }
+# Soroban. The runner executes contracts through the SDK's test host locally and
+# through the RPC client against a network.
+soroban-sdk = { version = "27.0.6", features = ["testutils"] }
+stellar-rpc-client = "27.0.0"
+stellar-xdr = { version = "28.0.0", features = ["curr", "std"] }
+# JSON Schema validation, so the runner rejects a profile the same way the
+# specification's own tooling does instead of re-deriving the rules.
+jsonschema = "0.56.0"
+# Report rendering
+quick-xml = "0.38.3"
+# Tests and benchmarks
+assert_cmd = "2.2.2"
+predicates = "3.1.4"
+proptest = "1.11.0"
+tempfile = "3.27.0"
+criterion = "0.8.2"
+
+# Lints are workspace-wide so that a new crate cannot be less strict than its
+# neighbours by accident.
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+missing_docs = "warn"
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# The runner prints structured output and parses untrusted documents, so these
+# two are errors rather than warnings.
+unwrap_used = "deny"
+expect_used = "deny"
+# A suppression has to say why. `#[allow(clippy::x)]` with no reason is how a
+# lint quietly stops applying to the code that most needs it.
+allow_attributes_without_reason = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"
+
+[profile.release]
+# A conformance run must be reproducible before it is fast. LTO and a single
+# codegen unit are enabled so that a released binary's behaviour is a function of
+# its source, and debug info is stripped because release artefacts are shipped.
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+
+[profile.bench]
+debug = true
