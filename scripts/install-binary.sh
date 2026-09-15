@@ -1,10 +1,10 @@
-#!/usr/bin/env bash
+#!/bin/sh
 #
 # Install the `estamora` binary from a published release.
 #
-#   curl -fsSL https://raw.githubusercontent.com/Estamora-Soroban-Layers/estamora-conformance-runner/main/scripts/install-binary.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/Estamora-Soroban-Layers/estamora-conformance-runner/v0.1.1/scripts/install-binary.sh | sh
 #
-#   ./install-binary.sh --version v0.1.0
+#   ./install-binary.sh --version v0.1.1
 #   ./install-binary.sh --dir "$HOME/.local/bin"
 #   ./install-binary.sh --target aarch64-apple-darwin
 #
@@ -24,7 +24,19 @@
 # file, a missing entry, or a mismatch all stop the install rather than continuing with
 # a warning.
 
-set -euo pipefail
+# POSIX `sh`, deliberately, and not `bash`.
+#
+# The documented way to run this is `curl -fsSL <url> | sh`, and on Debian, Ubuntu and the
+# GitHub runners `/bin/sh` is dash. `pipefail` is not in POSIX: `set -o pipefail` is an
+# immediate `set: Illegal option -o pipefail`, the script exits before installing anything,
+# and because the failure is on stderr inside a pipeline the reader sees a bare error with
+# no install. That is exactly the shape of the defect this repository keeps finding in
+# other people's installers, so it is not going to live in this one.
+#
+# Nothing here needs `pipefail`: every pipeline that could fail is either guarded with
+# `|| die` or produces an empty result that the check after it rejects. `test-install-binary.sh`
+# runs this script through `sh` as a case, so the guarantee is tested rather than promised.
+set -eu
 
 REPOSITORY="${ESTAMORA_REPOSITORY:-Estamora-Soroban-Layers/estamora-conformance-runner}"
 VERSION="latest"
@@ -33,7 +45,17 @@ DIR="${ESTAMORA_INSTALL_DIR:-}"
 
 say() { printf '%s\n' "$*" >&2; }
 die() { say "install: $*"; exit 1; }
-usage() { sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; }
+# Printed from the script's own header when it is being read as a file. Piped to `sh`, `$0`
+# is the interpreter's name rather than a path to anything, so there is nothing to read and
+# a short usage is printed instead of an empty one.
+usage() {
+    if [ -f "$0" ]; then
+        sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
+    else
+        printf '%s\n' "usage: install-binary.sh [--version V] [--target T] [--dir D] [--repository O/R]"
+        printf '%s\n' "       detects the platform, verifies the release checksum, installs to ~/.cargo/bin or ~/.local/bin"
+    fi
+}
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -99,7 +121,9 @@ work="$(mktemp -d)"
 # The archive is downloaded into a directory that is removed whatever happens, so a
 # failed verification does not leave a half-downloaded binary where a later run, or a
 # person, might find it.
-trap 'rm -rf "$work"' EXIT INT TERM
+# `0` rather than `EXIT`: the latter is a bash spelling, and this script runs under whatever
+# `sh` the reader has.
+trap 'rm -rf "$work"' 0 1 2 3 15
 
 say "install: fetching $archive"
 curl -fsSL -o "$work/$archive" "$base/$archive" \

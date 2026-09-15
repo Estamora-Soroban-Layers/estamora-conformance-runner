@@ -162,6 +162,34 @@ out="$(ESTAMORA_RELEASE_BASE="file://$work/prefixed" "$INSTALLER" --dir "$work/p
 check "exits zero" "0" "$status"
 check "installed a binary" "yes" "$([ -x "$work/prefixed-bin/estamora" ] && echo yes || echo no)"
 
+# --- 6. the documented quickstart works through `sh` ---------------------------------
+
+# The README says `curl -fsSL <url> | sh`, and on Debian, Ubuntu and the GitHub runners
+# `/bin/sh` is dash. The installer used `set -o pipefail`, which is not POSIX: dash stopped
+# on its first line, installed nothing and said so only on stderr inside a pipeline. Nobody
+# running the documented command would have seen the error, and nothing here would have
+# caught it, because every other case invokes the script with its own `bash` shebang.
+#
+# So the quickstart is a case. If `sh` is a shell that rejects the script, this fails.
+say "6. the documented quickstart works through sh"
+make_release "$work/posix" "$host_target" ok
+mkdir -p "$work/posix-bin"
+
+status=0
+out="$(ESTAMORA_RELEASE_BASE="file://$work/posix" sh "$INSTALLER" --dir "$work/posix-bin" 2>&1)" || status=$?
+
+check "exits zero under sh" "0" "$status"
+check "installed a binary" "yes" "$([ -x "$work/posix-bin/estamora" ] && echo yes || echo no)"
+check "no shell rejected the script" "no" \
+    "$(printf '%s' "$out" | grep -qi 'illegal option\|not found' && echo yes || echo no)"
+
+# The same script must also parse as bash, because `./install-binary.sh` and
+# `bash install-binary.sh` are both things a reader will type.
+if command -v bash >/dev/null 2>&1; then
+    bash -n "$INSTALLER" || { say "  FAIL the installer is not valid bash"; failures=$((failures + 1)); }
+    say "  ok   the installer is also valid bash"
+fi
+
 say ""
 if [ "$failures" -ne 0 ]; then
     die "$failures check(s) failed"
