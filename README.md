@@ -163,20 +163,92 @@ constructs one of them; a rule that does not apply is recorded as inapplicable r
 satisfied, since counting it as a pass would claim coverage the scenario never exercised.
 An invariant outside its declared scope is inapplicable in the same way.
 
-## Running it
+## Installing it
 
-The specification checkout is found from `--spec`, then `ESTAMORA_SPEC_REPO`, then the
-sibling directory, because the two repositories are developed beside each other and CI checks
-both out into one workspace.
+Three routes, and they answer a different question about which revision you are running.
+Pick by what you need to be able to say afterwards.
+
+### A released binary
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Estamora-Soroban-Layers/estamora-conformance-runner/v0.1.0/scripts/install-binary.sh | sh
+```
+
+The script detects the platform, downloads the matching archive from the release, checks it
+against the release's `SHA256SUMS`, and installs it to `~/.cargo/bin` or `~/.local/bin`. It
+**refuses to install anything it cannot verify** — no checksum file, no entry for the
+archive, or a mismatch all stop the install rather than printing a warning and continuing.
+That is not ceremony: an installer that fetches a binary and runs it unchecked is trusting
+the network, a DNS answer and a TLS certificate for the integrity of the tool whose job is
+to be trustworthy about somebody else's contract.
+
+| Platform | Archive |
+| --- | --- |
+| Linux, x86-64 | `estamora-x86_64-unknown-linux-gnu.tar.gz` |
+| Linux, arm64 | `estamora-aarch64-unknown-linux-gnu.tar.gz` |
+| macOS, Apple silicon | `estamora-aarch64-apple-darwin.tar.gz` |
+| Windows, x86-64 | `estamora-x86_64-pc-windows-msvc.tar.gz` |
+
+`--version v0.1.0` pins a release instead of taking the latest, `--target` overrides the
+detected platform, and `--dir` chooses where it lands. Every archive also carries its own
+`README`, its licence and a `VERSION` file, so what was shipped and what the tool reports
+cannot disagree.
+
+### From a tagged revision, with `cargo`
+
+```bash
+cargo install --locked --git https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner \
+  --tag v0.1.0 estamora-cli
+```
+
+This compiles from source, so it needs a Rust toolchain and several minutes, and in exchange
+the binary is built from a revision you can read. It does **not** use the toolchain pinned in
+`rust-toolchain.toml`: `cargo install` compiles the checkout in a temporary directory, and
+rustup selects a toolchain from the working directory, not from the source tree. The released
+binaries above are built with the pinned toolchain and are the ones whose identity matches
+what a report records.
+
+The crates are not on crates.io yet, so `cargo install estamora-cli` does not resolve today.
+When they are published, that is the shortest of these three.
+
+### From a checkout
+
+```bash
+./scripts/install.sh
+```
+
+Installs the working tree you are standing in, which is what a contributor wants and the
+wrong answer for anybody who has to ask which revision produced a verdict.
+
+### It also needs a specification checkout
+
+A profile is not compiled into the binary. `--profile sep-41@1.0` resolves inside a checkout
+of [`estamora-conformance-spec`](https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec),
+because which revision of which profile a verdict was produced against is part of what the
+verdict means — a bundled copy would let the two drift silently.
+
+```bash
+git clone https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec
+export ESTAMORA_SPEC_REPO="$PWD/estamora-conformance-spec"
+```
+
+The checkout is found from `--spec`, then `ESTAMORA_SPEC_REPO`, then the sibling directory.
+A binary installed from a release is a sibling of nothing, so without one of the first two
+`estamora` stops with a message naming the variable, the directory it tried and the command
+that clones it.
+
+## Running it
 
 ```bash
 # Measure a contract against a profile and print a verdict.
-cargo run -p estamora-cli -- run --profile sep-41@1.0 --contract fixture:none
+estamora run --profile sep-41@1.0 --contract fixture:none
 
 # The same run as the normative document, for another tool to consume.
-cargo run -p estamora-cli -- run --profile sep-41@1.0 --contract fixture:none \
-  --format json --out report.json
+estamora run --profile sep-41@1.0 --contract fixture:none --format json --out report.json
 ```
+
+From a checkout of this repository, `cargo run -p estamora-cli -- run …` is the same binary
+without installing it.
 
 The in-repository fixtures are contracts that are wrong in exactly one way each, so a
 `NON_CONFORMANT` result can be traced to a single named requirement:
@@ -202,6 +274,23 @@ For CI, the two flags a pipeline needs are `--format junit --out results.xml` fo
 already understands, and `--no-fail`, which exits `0` whatever the verdict while still
 recording it — for a pipeline that wants the report of a non-conformant contract without
 failing the job that produced it.
+
+This repository is also usable as a GitHub Action, which builds the tool from the revision
+the `uses:` reference pins and fails the job when the verdict is not `CONFORMANT`:
+
+```yaml
+- uses: Estamora-Soroban-Layers/estamora-conformance-runner@v1
+  with:
+    profile: sep-41@1.0
+    contract: ${{ vars.CONTRACT_ID }}
+    network: testnet
+    format: junit
+    report: estamora-report.json
+```
+
+It reports `status`, `exit-code` and `report` as outputs, so a later step can branch on the
+verdict rather than on a bare failure. [`docs/ci-integration.md`](docs/ci-integration.md)
+has the full example, including the two cases that must not be read as a contract defect.
 
 ## Building
 
