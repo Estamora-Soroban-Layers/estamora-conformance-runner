@@ -24,6 +24,23 @@ ignore = [
     #
     # { id = "RUSTSEC-0000-0000", reason = "no patched release; the reachable path
     #   needs `x` which this workspace does not enable — see <link>" },
+
+    # `paste` is unmaintained (RUSTSEC-2024-0436), and there is no version of Estamora
+    # that avoids it. It arrives through `soroban-env-host 27.0.1` from two choices the
+    # SDK makes — `ark-ff 0.5.0` and `wasmi_core 0.13.0` — and `27.0.6` is the newest
+    # stable `soroban-sdk`, already pinned here. The releases that drop it are
+    # `soroban-sdk 28.0.0-rc.1`, `ark-ff 0.6.0` and `wasmi_core 2.0.0`; taking them means
+    # overriding the crypto and WebAssembly dependencies of the SDK the fixture
+    # contracts are built with, which would be a worse defect than the one it fixes.
+    #
+    # This advisory is a maintenance status rather than a defect, and it is the property
+    # that makes the entry acceptable where the `quick-xml` advisories were not: `paste`
+    # is a proc macro, so it expands at build time, and nothing an untrusted profile,
+    # vector or contract contains can reach it at run time. Those advisories were in a
+    # library this workspace calls in order to parse untrusted input.
+    #
+    # Remove this entry when the pinned SDK no longer contains `paste`.
+    { id = "RUSTSEC-2024-0436", reason = "unmaintained; transitive through soroban-env-host 27.0.1 via ark-ff 0.5.0 and wasmi_core 0.13.0, with no stable SDK release that avoids it — and it is a build-time proc macro, so nothing untrusted reaches it at run time. See https://rustsec.org/advisories/RUSTSEC-2024-0436" },
 ]
 
 [licenses]
