@@ -24,6 +24,28 @@
 //! constructor that configured anything would only be reachable by a caller this runner
 //! does not have. Everything a vector can actually ask of it is answered from an empty
 //! token: `decimals`, `name` and `symbol` are constants, and every balance read is zero.
+//!
+//! # Why the signatures are exactly SEP-0041's
+//!
+//! This artifact exists to be measured against the `sep-41` profile, so it has to publish
+//! the interface that profile declares — and the interface a contract publishes is the
+//! one written into its `contractspecv0` section, not the one its source appears to
+//! have.
+//!
+//! Two details of that encoding are easy to get wrong, and both were:
+//!
+//! * `approve`, `transfer`, `transfer_from`, `burn` and `burn_from` are declared by
+//!   SEP-0041 as returning **nothing**. A signature returning `Result<(), Error>` — the
+//!   first spelling this fixture used — publishes `result<void,error>`, which is a
+//!   different interface and one a caller written against SEP-0041 cannot decode. A
+//!   refusal therefore has to be a trap carrying the error, which is what the host
+//!   records and what this contract now does.
+//! * `name` and `symbol` return `String`. Importing it under an alias, as
+//!   `String as SorobanString`, makes the SDK's spec generator fail to recognise it and
+//!   emit a user-defined type named after the alias instead — so the artifact published
+//!   `sorobanstring` and every token built that way would have been measured as
+//!   publishing a type of its own invention. `String` is imported under its own name for
+//!   that reason, and the interface test in this crate is what keeps it that way.
 #![no_std]
 // The signatures below take `Env` and `Address` by value because the Soroban contract ABI
 // requires it: an exported function's parameters *are* the wire format of the call, and
@@ -37,8 +59,8 @@
 )]
 
 use soroban_sdk::{
-    Address, Env, MuxedAddress, String as SorobanString, contract, contracterror, contractimpl,
-    contracttype,
+    Address, Env, MuxedAddress, String, contract, contracterror, contractimpl, contracttype,
+    panic_with_error,
 };
 
 /// The precision this token is configured with.
@@ -82,26 +104,25 @@ impl MeasurableToken {
 
     /// Sets `spender`'s allowance to `amount`, live until `live_until_ledger`.
     ///
-    /// # Errors
+    /// # Panics
     ///
-    /// Returns [`Error::InvalidAmount`] for a negative amount. A zero amount is not an
-    /// error: revoking an allowance is a legitimate thing to ask for.
+    /// Panics with [`Error::InvalidAmount`] for a negative amount. A zero amount is not
+    /// an error: revoking an allowance is a legitimate thing to ask for.
     pub fn approve(
         env: Env,
         from: Address,
         spender: Address,
         amount: i128,
         live_until_ledger: u32,
-    ) -> Result<(), Error> {
+    ) {
         from.require_auth();
         if amount < 0 {
-            return Err(Error::InvalidAmount);
+            panic_with_error!(&env, Error::InvalidAmount);
         }
         env.storage().temporary().set(
             &DataKey::Allowance(from, spender),
             &(amount, live_until_ledger),
         );
-        Ok(())
     }
 
     /// The balance held by `id`, which is zero for an address with no balance entry.
@@ -114,73 +135,67 @@ impl MeasurableToken {
 
     /// Moves `amount` from `from` to `to`.
     ///
-    /// # Errors
+    /// # Panics
     ///
-    /// Returns [`Error::InsufficientBalance`] when `from` does not hold `amount`, and
-    /// [`Error::InvalidAmount`] for a negative one.
-    pub fn transfer(env: Env, from: Address, to: MuxedAddress, amount: i128) -> Result<(), Error> {
+    /// Panics with [`Error::InsufficientBalance`] when `from` does not hold `amount`, and
+    /// with [`Error::InvalidAmount`] for a negative one.
+    pub fn transfer(env: Env, from: Address, to: MuxedAddress, amount: i128) {
         from.require_auth();
-        Self::move_value(&env, &from, &to.address(), amount)
+        Self::demanding(&env, Self::move_value(&env, &from, &to.address(), amount));
     }
 
     /// Moves `amount` from `from` to `to`, drawing on `spender`'s allowance.
     ///
-    /// # Errors
+    /// # Panics
     ///
-    /// Returns [`Error::InsufficientAllowance`] when the live allowance is smaller than
-    /// `amount`, and [`Error::InsufficientBalance`] when the holder does not have it.
-    pub fn transfer_from(
-        env: Env,
-        spender: Address,
-        from: Address,
-        to: Address,
-        amount: i128,
-    ) -> Result<(), Error> {
+    /// Panics with [`Error::InsufficientAllowance`] when the live allowance is smaller
+    /// than `amount`, and with [`Error::InsufficientBalance`] when the holder does not
+    /// have it.
+    pub fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128) {
         spender.require_auth();
         let (allowed, live_until) = Self::live_allowance(&env, &from, &spender);
         if allowed < amount {
-            return Err(Error::InsufficientAllowance);
+            panic_with_error!(&env, Error::InsufficientAllowance);
         }
-        Self::move_value(&env, &from, &to, amount)?;
+        Self::demanding(&env, Self::move_value(&env, &from, &to, amount));
         env.storage().temporary().set(
             &DataKey::Allowance(from, spender),
             &(allowed - amount, live_until),
         );
-        Ok(())
     }
 
     /// Destroys `amount` of `from`'s balance.
     ///
-    /// # Errors
+    /// # Panics
     ///
-    /// Returns [`Error::InsufficientBalance`] when the holder does not hold `amount`.
-    pub fn burn(env: Env, from: Address, amount: i128) -> Result<(), Error> {
+    /// Panics with [`Error::InsufficientBalance`] when the holder does not hold `amount`.
+    pub fn burn(env: Env, from: Address, amount: i128) {
         from.require_auth();
         let held = Self::balance(env.clone(), from.clone());
         if held < amount {
-            return Err(Error::InsufficientBalance);
+            panic_with_error!(&env, Error::InsufficientBalance);
         }
         env.storage()
             .persistent()
             .set(&DataKey::Balance(from), &(held - amount));
-        Ok(())
     }
 
     /// Destroys `amount` of `from`'s balance, drawing on `spender`'s allowance.
     ///
-    /// # Errors
+    /// # Panics
     ///
-    /// Returns [`Error::InsufficientAllowance`] when the live allowance is smaller than
-    /// `amount`, and [`Error::InsufficientBalance`] when the holder does not have it.
-    pub fn burn_from(env: Env, spender: Address, from: Address, amount: i128) -> Result<(), Error> {
+    /// Panics with [`Error::InsufficientAllowance`] when the live allowance is smaller
+    /// than `amount`, and with [`Error::InsufficientBalance`] when the holder does not
+    /// have it.
+    pub fn burn_from(env: Env, spender: Address, from: Address, amount: i128) {
         spender.require_auth();
         let (allowed, live_until) = Self::live_allowance(&env, &from, &spender);
         if allowed < amount {
-            return Err(Error::InsufficientAllowance);
+            panic_with_error!(&env, Error::InsufficientAllowance);
         }
         let held = Self::balance(env.clone(), from.clone());
         if held < amount {
-            return Err(Error::InsufficientBalance);
+            panic_with_error!(&env, Error::InsufficientBalance);
         }
         env.storage()
             .persistent()
@@ -189,7 +204,6 @@ impl MeasurableToken {
             &DataKey::Allowance(from, spender),
             &(allowed - amount, live_until),
         );
-        Ok(())
     }
 
     /// The precision this token reports.
@@ -198,13 +212,13 @@ impl MeasurableToken {
     }
 
     /// This token's name.
-    pub fn name(env: Env) -> SorobanString {
-        SorobanString::from_str(&env, "Measurable Token")
+    pub fn name(env: Env) -> String {
+        String::from_str(&env, "Measurable Token")
     }
 
     /// This token's symbol.
-    pub fn symbol(env: Env) -> SorobanString {
-        SorobanString::from_str(&env, "MST")
+    pub fn symbol(env: Env) -> String {
+        String::from_str(&env, "MST")
     }
 
     /// The allowance that is still live at the current ledger.
@@ -223,6 +237,19 @@ impl MeasurableToken {
             },
             Some((_, live_until)) => (0, live_until),
             None => (0, 0),
+        }
+    }
+
+    /// A refusal, as SEP-0041 requires one to be made.
+    ///
+    /// The standard declares these methods as returning nothing, so a failure cannot be
+    /// reported in a return value: it has to be a trap carrying the error, which is what
+    /// the host records and what a caller observes. `move_value` returns its outcome
+    /// because a private helper may; the exported functions cannot.
+    fn demanding<T>(env: &Env, outcome: Result<T, Error>) -> T {
+        match outcome {
+            Ok(value) => value,
+            Err(error) => panic_with_error!(env, error),
         }
     }
 
@@ -277,11 +304,33 @@ mod tests {
         let client = MeasurableTokenClient::new(&env, &contract);
 
         assert_eq!(client.decimals(), DECIMALS);
+        assert_eq!(client.name(), String::from_str(&env, "Measurable Token"));
+        assert_eq!(client.symbol(), String::from_str(&env, "MST"));
+    }
+
+    #[test]
+    fn a_refusal_is_a_trap_carrying_the_error_not_a_returned_value() {
+        // The change this asserts is invisible in the Rust signature and visible in the
+        // published one: `Result<(), Error>` would publish `result<void,error>`, which is
+        // not the interface SEP-0041 declares. The error still has to reach the caller,
+        // so the code is what identifies the refusal.
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract = env.register(MeasurableToken, ());
+        let client = MeasurableTokenClient::new(&env, &contract);
+        let holder = Address::generate(&env);
+
+        // The refusal arrives as a host error carrying this contract's code, which is the
+        // route a caller has once the declared interface stops reporting one in a value.
         assert_eq!(
-            client.name(),
-            SorobanString::from_str(&env, "Measurable Token")
+            client.try_burn(&holder, &1),
+            Err(Ok(Error::InsufficientBalance.into())),
+            "a refusal must carry the error SEP-0041 defines for it"
         );
-        assert_eq!(client.symbol(), SorobanString::from_str(&env, "MST"));
+        assert_eq!(
+            client.try_approve(&holder, &holder, &-1, &10),
+            Err(Ok(Error::InvalidAmount.into()))
+        );
     }
 
     #[test]
