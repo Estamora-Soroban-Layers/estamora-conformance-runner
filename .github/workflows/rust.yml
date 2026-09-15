@@ -18,6 +18,10 @@ on:
       # `eol=lf` removed, windows-latest checks out CRLF and `cargo fmt --check` fails
       # on every file while ubuntu and macos stay green.
       - ".gitattributes"
+      # `deny.toml` is the policy the `dependency policy` job enforces. A change to the
+      # policy changes what the check means, and without it here an advisory that was
+      # exempted, or a ban that was added, would not re-run the check that reads it.
+      - "deny.toml"
       - ".github/workflows/rust.yml"
   pull_request:
     paths:
@@ -31,6 +35,10 @@ on:
       # `eol=lf` removed, windows-latest checks out CRLF and `cargo fmt --check` fails
       # on every file while ubuntu and macos stay green.
       - ".gitattributes"
+      # `deny.toml` is the policy the `dependency policy` job enforces. A change to the
+      # policy changes what the check means, and without it here an advisory that was
+      # exempted, or a ban that was added, would not re-run the check that reads it.
+      - "deny.toml"
       - ".github/workflows/rust.yml"
   workflow_dispatch:
 
