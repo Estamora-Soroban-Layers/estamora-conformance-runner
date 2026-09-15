@@ -292,6 +292,19 @@ It reports `status`, `exit-code` and `report` as outputs, so a later step can br
 verdict rather than on a bare failure. [`docs/ci-integration.md`](docs/ci-integration.md)
 has the full example, including the two cases that must not be read as a contract defect.
 
+## Has this been run against a contract it did not write?
+
+Yes, and the report is committed rather than described.
+[`examples/testnet-contract/report.json`](examples/testnet-contract/report.json) is the
+output of a measurement made over RPC against a contract deployed to testnet: the
+identifier resolved to the WebAssembly in its instance ledger entry, the artifact verified
+against the code hash that entry declares, the interface read out of the deployed bytes,
+and **63 checks across all seven dimensions reported, 0 failed**. One of the twenty vectors
+was decided there and then, because it needs no seeded state; the other nineteen cannot be,
+which is why that run is `INCONCLUSIVE` and not conformant. The example's README records
+the identifiers, the digests and the command, and says what the verdict does and does not
+mean.
+
 ## Building
 
 The toolchain is pinned in `rust-toolchain.toml` and is part of the runner's identity: a
