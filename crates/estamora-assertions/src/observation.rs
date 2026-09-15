@@ -127,7 +127,7 @@ impl ObservedCall {
     ///
     /// `true` only when the interface was verified first. An evaluator that treats a
     /// refusal as satisfying "must fail" has to consult this, and
-    /// [`crate::failures`] refuses to count a refusal when it is `false`.
+    /// [`crate::dimensions::failures`] refuses to count a refusal when it is `false`.
     #[must_use]
     pub const fn refusal_is_unambiguous(&self) -> bool {
         self.refused() && self.interface_verified
