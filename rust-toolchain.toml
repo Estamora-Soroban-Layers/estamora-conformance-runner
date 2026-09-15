@@ -1,0 +1,13 @@
+# The toolchain is pinned rather than tracked. A conformance result is only
+# meaningful if the tooling that produced it is identified, so the version that
+# compiles the runner is part of the runner's identity and appears in every
+# report. Updating this file is a change to what a result means, not a
+# housekeeping chore.
+[toolchain]
+channel = "1.98.1"
+components = ["rustfmt", "clippy"]
+# Contract fixtures under `fixtures/contracts/` are compiled to WebAssembly, so
+# the target has to be available for the integration tests that build them. The
+# runner's own crates are never built for it.
+targets = ["wasm32v1-none"]
+profile = "minimal"
