@@ -35,12 +35,12 @@ name = "estamora_benches"
 path = "src/lib.rs"
 
 [dependencies]
-estamora-certification = { path = "../crates/estamora-certification" }
-estamora-cli = { path = "../crates/estamora-cli" }
-estamora-core = { path = "../crates/estamora-core" }
-estamora-profile = { path = "../crates/estamora-profile" }
-estamora-report = { path = "../crates/estamora-report" }
-estamora-vectors = { path = "../crates/estamora-vectors" }
+estamora-certification = { workspace = true }
+estamora-cli = { workspace = true }
+estamora-core = { workspace = true }
+estamora-profile = { workspace = true }
+estamora-report = { workspace = true }
+estamora-vectors = { workspace = true }
 tempfile = { workspace = true }
 
 [dev-dependencies]

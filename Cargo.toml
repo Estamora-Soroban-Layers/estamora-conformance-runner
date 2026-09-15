@@ -52,6 +52,27 @@ categories = ["development-tools::testing"]
 # the same majors; mixing them would produce two incompatible copies of the
 # crypto types and a type error at every boundary.
 [workspace.dependencies]
+# The workspace's own crates, declared here with both a `path` and a `version`. The
+# version is not decoration. `deny.toml` refuses a wildcard requirement, and a path
+# dependency with no version is exactly that: a requirement nobody has decided. The
+# same rule the external dependencies below follow is applied to the crates this
+# workspace owns, and stating it once means nine manifests cannot drift apart.
+#
+# The list is in the workspace's layering order, bottom first. Nothing below
+# `estamora-soroban` may depend on it.
+estamora-core = { version = "0.1.0", path = "crates/estamora-core" }
+estamora-profile = { version = "0.1.0", path = "crates/estamora-profile" }
+estamora-vectors = { version = "0.1.0", path = "crates/estamora-vectors" }
+estamora-soroban = { version = "0.1.0", path = "crates/estamora-soroban" }
+estamora-assertions = { version = "0.1.0", path = "crates/estamora-assertions" }
+estamora-report = { version = "0.1.0", path = "crates/estamora-report" }
+estamora-certification = { version = "0.1.0", path = "crates/estamora-certification" }
+estamora-cli = { version = "0.1.0", path = "crates/estamora-cli" }
+# The in-repository contract set. The version is required here for the same reason as
+# the crates above; the crate itself is `publish = false`, so its version never has to
+# exist in a registry — installation is from a checkout or a release artefact.
+estamora-fixture-token = { version = "0.1.0", path = "fixtures/contracts/conformance-token" }
+
 # Error and serialization
 anyhow = "1.0.104"
 serde = { version = "1.0.228", features = ["derive"] }

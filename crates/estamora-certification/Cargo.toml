@@ -19,8 +19,8 @@ workspace = true
 # who asserted a result, and nothing here claims confidentiality or that a signed
 # result is correct.
 [dependencies]
-estamora-core = { path = "../estamora-core" }
-estamora-report = { path = "../estamora-report" }
+estamora-core = { workspace = true }
+estamora-report = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

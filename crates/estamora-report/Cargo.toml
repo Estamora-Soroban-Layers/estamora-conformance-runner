@@ -20,9 +20,9 @@ workspace = true
 # rather than the schema being derived from the model: an independent implementation
 # must be able to emit a document Estamora tooling accepts.
 [dependencies]
-estamora-assertions = { path = "../estamora-assertions" }
-estamora-core = { path = "../estamora-core" }
-estamora-vectors = { path = "../estamora-vectors" }
+estamora-assertions = { workspace = true }
+estamora-core = { workspace = true }
+estamora-vectors = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

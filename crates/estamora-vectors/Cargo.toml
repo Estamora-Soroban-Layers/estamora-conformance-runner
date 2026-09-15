@@ -15,8 +15,8 @@ categories.workspace = true
 workspace = true
 
 [dependencies]
-estamora-core = { path = "../estamora-core" }
-estamora-profile = { path = "../estamora-profile" }
+estamora-core = { workspace = true }
+estamora-profile = { workspace = true }
 serde = { workspace = true }
 serde_yaml_ng = { workspace = true }
 time = { workspace = true }

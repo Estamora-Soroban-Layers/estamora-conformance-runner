@@ -29,13 +29,13 @@ name = "estamora"
 path = "src/main.rs"
 
 [dependencies]
-estamora-assertions = { path = "../estamora-assertions" }
-estamora-certification = { path = "../estamora-certification" }
-estamora-core = { path = "../estamora-core" }
-estamora-profile = { path = "../estamora-profile" }
-estamora-report = { path = "../estamora-report" }
-estamora-soroban = { path = "../estamora-soroban" }
-estamora-vectors = { path = "../estamora-vectors" }
+estamora-assertions = { workspace = true }
+estamora-certification = { workspace = true }
+estamora-core = { workspace = true }
+estamora-profile = { workspace = true }
+estamora-report = { workspace = true }
+estamora-soroban = { workspace = true }
+estamora-vectors = { workspace = true }
 # The in-repository contract set is a real dependency rather than a test-only one,
 # because `--contract fixture:<name>` is how the runner is demonstrated and
 # self-tested without a deployed contract, and shipping a binary that could not
@@ -43,7 +43,7 @@ estamora-vectors = { path = "../estamora-vectors" }
 # `publish = false`, so installation is from a checkout or a release artefact (see
 # `scripts/install.sh`) rather than from a registry, which is what the whole
 # workspace assumes.
-estamora-fixture-token = { path = "../../fixtures/contracts/conformance-token" }
+estamora-fixture-token = { workspace = true }
 soroban-sdk = { workspace = true }
 clap = { workspace = true }
 serde = { workspace = true }

@@ -20,9 +20,9 @@ workspace = true
 # is testable without an execution environment, and the crates that do know about
 # Soroban stay below it.
 [dependencies]
-estamora-core = { path = "../estamora-core" }
-estamora-profile = { path = "../estamora-profile" }
-estamora-vectors = { path = "../estamora-vectors" }
+estamora-core = { workspace = true }
+estamora-profile = { workspace = true }
+estamora-vectors = { workspace = true }
 
 [dev-dependencies]
 serde_yaml_ng = { workspace = true }
