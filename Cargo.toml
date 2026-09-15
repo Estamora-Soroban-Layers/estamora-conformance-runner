@@ -41,6 +41,7 @@ homepage = "https://github.com/Estamora-Soroban-Layers/estamora-conformance-runn
 authors = ["Estamora contributors"]
 keywords = ["stellar", "soroban", "conformance", "testing"]
 categories = ["development-tools::testing"]
+readme = "README.md"
 
 # Dependency versions are declared once, here, and pinned in Cargo.lock. They are
 # pinned deliberately: an unpinned validator or SDK changes the meaning of a

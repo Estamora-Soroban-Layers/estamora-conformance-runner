@@ -63,14 +63,20 @@ check() {
     cargo clippy --workspace --all-targets -- -D warnings >/dev/null 2>&1 \
         || die "cargo clippy failed"
 
-    # Every crate must carry the license, repository and description the manifest
-    # promises, or a published crate is missing the metadata a consumer needs.
-    for crate in "${PUBLISHABLE[@]}"; do
-        cargo metadata --no-deps --format-version 1 >/dev/null
-        grep -q '^description' "crates/$crate/Cargo.toml" \
-            || grep -q '^description' Cargo.toml \
-            || die "crates/$crate declares no description"
-    done
+    # Every crate must carry the metadata a consumer needs, and the check reads what Cargo
+    # resolves rather than what the manifests say.
+    #
+    # The previous version of this check grepped for a line beginning `description` in the
+    # crate's manifest *or* in the workspace manifest, which passes a crate that declares
+    # nothing while the workspace declares it for somebody else. These fields are inherited
+    # with `<field>.workspace = true`, so an omission is silent until the registry page is
+    # published without it.
+    say "release: checking the metadata published crates must carry"
+    # No package names: the check derives the publishable set from the metadata, so a crate
+    # added to the workspace is covered without this list being edited too.
+    cargo metadata --no-deps --format-version 1 \
+        | python3 scripts/check-crate-metadata.py \
+        || die "a publishable crate is missing metadata a consumer needs"
 
     say "release: checks passed"
 }

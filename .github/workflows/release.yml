@@ -65,6 +65,15 @@ jobs:
           cargo clippy --workspace --all-targets -- -D warnings
           cargo test --workspace --locked
 
+      # A crate's page on a registry is generated from its manifest, and the fields that
+      # make that page useful -- the description, the README, the keywords, the categories --
+      # are declared once in `[workspace.package]` and inherited. A crate that forgets to
+      # inherit one is published without it, and nothing else would notice: the workspace
+      # still has the value. So this reads what Cargo actually resolves, and it checks every
+      # publishable crate without being given a list.
+      - name: Every published crate carries the metadata a consumer needs
+        run: cargo metadata --no-deps --format-version 1 | python3 scripts/check-crate-metadata.py
+
       # The package that gets published is the package that was tested. `--locked` keeps
       # the dependency tree exactly as committed, which is the whole reason the lock file
       # is in the repository.
