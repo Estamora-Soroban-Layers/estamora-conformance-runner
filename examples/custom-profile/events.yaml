@@ -1,0 +1,171 @@
+# yaml-language-server: $schema=../../estamora-conformance-spec/schema/event.schema.json
+#
+# A read surface emits nothing, and this document says so by *forbidding* the three events
+# that would mean something moved. It is not an empty document, because those are different
+# claims.
+#
+# An empty `events:` would say this profile has no event requirements, and a vector that
+# forbade `transfer` would then be a corpus defect — a reference to an event the profile
+# never described. Declaring them as `forbidden` is what makes "a read must not emit a
+# transfer" a requirement with an identity: the vector names it, the events dimension
+# evaluates it against the observed log, and a contract that emits one is reported as
+# having failed a check whose summary a reader can see.
+#
+# The topic shapes are transcribed from SEP-41 even though nothing here is required to
+# match them. A forbidden declaration is matched on `name` alone — the whole point is that
+# *any* event called `transfer` is an event that claims a movement happened — but leaving
+# the shape unstated would make this file a list of words rather than a description of what
+# was observed, and a reader would have to go to another repository to learn what a
+# `transfer` event even is.
+events:
+  - id: transfer
+    name: transfer
+    requirement: forbidden
+    summary: No transfer event may be emitted by any read-only method.
+    description: >-
+      A read that emitted a transfer event would feed a movement into every indexer that
+      reconstructs balances from the log, and the movement would be one that never
+      happened: no balance changed, because a read does not change balances. The event is
+      therefore worse than useless on this surface — it is actively wrong, and it is wrong
+      in a way that the reader of the log cannot detect, because the log is what they treat
+      as the record.
+    occurrence: always
+    topics:
+      - index: 0
+        type:
+          kind: prim
+          name: symbol
+        binding:
+          kind: literal
+          value: transfer
+        semantics: The event discriminator, which SEP-41 fixes as the symbol `transfer`.
+      - index: 1
+        type:
+          kind: prim
+          name: address
+        binding:
+          kind: unconstrained
+        semantics: The account the tokens were supposedly drawn from.
+      - index: 2
+        type:
+          kind: prim
+          name: address
+        binding:
+          kind: unconstrained
+        semantics: The account that supposedly received the tokens.
+    data:
+      format: either
+      fields:
+        - name: amount
+          type:
+            kind: prim
+            name: i128
+          binding:
+            kind: unconstrained
+          semantics: The quantity the event would claim had moved, had anything moved.
+          optional: false
+    cardinality:
+      min: 0
+      max: 0
+    ordering: []
+    correlations: []
+
+  - id: approve
+    name: approve
+    requirement: forbidden
+    summary: No approve event may be emitted by any read-only method.
+    description: >-
+      An allowance is a grant a holder makes, and a read neither makes one nor observes one
+      in a way a log should record. An `approve` emitted by a read would tell a wallet that
+      an allowance had been granted — with an expiry it would then display — on the strength
+      of a call that changed nothing.
+    occurrence: always
+    topics:
+      - index: 0
+        type:
+          kind: prim
+          name: symbol
+        binding:
+          kind: literal
+          value: approve
+        semantics: The event discriminator, which SEP-41 fixes as the symbol `approve`.
+      - index: 1
+        type:
+          kind: prim
+          name: address
+        binding:
+          kind: unconstrained
+        semantics: The account that would hold the allowance.
+      - index: 2
+        type:
+          kind: prim
+          name: address
+        binding:
+          kind: unconstrained
+        semantics: The account that would be permitted to spend it.
+    data:
+      format: either
+      fields:
+        - name: amount
+          type:
+            kind: prim
+            name: i128
+          binding:
+            kind: unconstrained
+          semantics: The allowance the event would claim had been granted.
+          optional: false
+        - name: live_until_ledger
+          type:
+            kind: prim
+            name: u32
+          binding:
+            kind: unconstrained
+          semantics: The ledger at which the claimed allowance would have expired.
+          optional: false
+    cardinality:
+      min: 0
+      max: 0
+    ordering: []
+    correlations: []
+
+  - id: burn
+    name: burn
+    requirement: forbidden
+    summary: No burn event may be emitted by any read-only method.
+    description: >-
+      The sharpest of the three, because a burn destroys value and reduces the total supply.
+      A read that reported one would make a consumer's reconstruction of the supply diverge
+      from the contract's own, permanently and without any later event that corrects it.
+    occurrence: always
+    topics:
+      - index: 0
+        type:
+          kind: prim
+          name: symbol
+        binding:
+          kind: literal
+          value: burn
+        semantics: The event discriminator, which SEP-41 fixes as the symbol `burn`.
+      - index: 1
+        type:
+          kind: prim
+          name: address
+        binding:
+          kind: unconstrained
+        semantics: The account the tokens would have been destroyed from.
+    data:
+      format: either
+      fields:
+        - name: amount
+          type:
+            kind: prim
+            name: i128
+          binding:
+            kind: unconstrained
+          semantics: The quantity the event would claim had been destroyed.
+          optional: false
+    cardinality:
+      min: 0
+      max: 0
+    ordering: []
+    correlations: []

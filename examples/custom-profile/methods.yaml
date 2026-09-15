@@ -1,0 +1,125 @@
+# yaml-language-server: $schema=../../estamora-conformance-spec/schema/method.schema.json
+methods:
+  - id: balance
+    name: balance
+    requirement: required
+    summary: Report the balance held by an address.
+    description: >-
+      A read-only query. It must never fail for a syntactically valid address, including
+      one that has never held anything: an account that has never been funded holds zero,
+      and reporting that as an absent value, a trap or a default is a defect that surfaces
+      at the consumer rather than here.
+    args:
+      - name: address
+        type:
+          kind: prim
+          name: address
+        semantics: The account whose balance is read. Any account may read any balance.
+        authorization:
+          required: false
+          semantics: >-
+            A balance is public information. Requiring authorization would make an
+            account's holdings unreadable by anyone but its holder, which would break every
+            consumer that indexes the token.
+    returns:
+      type:
+        kind: prim
+        name: i128
+      semantics: The exact balance held by the address, or zero when it holds none.
+    mutability: readonly
+    invocation: read_only
+    authorization:
+      - no-authorization-for-reads
+    events: []
+    failures: []
+    behaviors:
+      - a-read-does-not-write
+    notes:
+      - >-
+        The argument is compared positionally by the interface dimension, so a contract
+        that named it `who` still conforms: the name is documentation, and the arity and
+        the type are the requirement.
+
+  - id: decimals
+    name: decimals
+    requirement: required
+    summary: Report the number of decimals this token scales its amounts by.
+    description: >-
+      A constant for any given token, and a member of the interface rather than a
+      convenience: without it an amount is a number with no unit, and a consumer that
+      assumed a precision would display every balance it reads wrongly. The call takes no
+      arguments and must not fail.
+    args: []
+    returns:
+      type:
+        kind: prim
+        name: u32
+      semantics: The scale factor, as a count of decimal places.
+    mutability: readonly
+    invocation: read_only
+    authorization:
+      - no-authorization-for-reads
+    events: []
+    failures: []
+    behaviors:
+      - a-read-does-not-write
+    notes:
+      - >-
+        No range is asserted here. SEP-41 does not bound the value, and a profile that
+        invented one — say, "at most 18" — would fail a conformant contract, which is a
+        worse outcome than not checking it.
+
+  - id: name
+    name: name
+    requirement: required
+    summary: Report the token's human-readable name.
+    description: >-
+      A read-only string. The requirement is that it exists, that it is non-empty, and that
+      reading it does not alter anything; the profile deliberately does not require a
+      particular name, because the name is the issuer's and not the standard's.
+    args: []
+    returns:
+      type:
+        kind: prim
+        name: string
+      semantics: The token's name. Must be non-empty.
+    mutability: readonly
+    invocation: read_only
+    authorization:
+      - no-authorization-for-reads
+    events: []
+    failures: []
+    behaviors:
+      - a-read-does-not-write
+
+  - id: symbol
+    name: symbol
+    requirement: required
+    summary: Report the token's ticker symbol.
+    description: >-
+      A read-only symbol. As with `name`, the profile requires that it is present and
+      non-empty and says nothing about what it should say.
+    args: []
+    returns:
+      type:
+        kind: prim
+        name: string
+      semantics: The token's symbol. Must be non-empty.
+    mutability: readonly
+    invocation: read_only
+    authorization:
+      - no-authorization-for-reads
+    events: []
+    failures: []
+    behaviors:
+      - a-read-does-not-write
+    notes:
+      - >-
+        `string`, not `symbol`. The two are different types in a Soroban contract's own
+        interface and the difference is observable: SEP-41 transcribes `symbol` as
+        returning `string`, and a bundle that declared otherwise would fail every
+        conforming implementation on a distinction the standard does not make. This file
+        said `symbol` until the runner was pointed at a contract that implements SEP-41,
+        which is how it was found — which is the argument for measuring a profile against
+        a known-good contract before proposing it, and for the conformance run being the
+        thing that decides rather than a reviewer.

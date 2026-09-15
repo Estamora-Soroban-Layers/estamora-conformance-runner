@@ -1,0 +1,67 @@
+# yaml-language-server: $schema=../../../../../../estamora-conformance-spec/schema/vector.schema.json
+id: decimals-reports-the-scale
+profile: token-reads
+profile_version: "1.0"
+title: The scale factor is reported and survives a second read
+description: >-
+  `decimals` takes no arguments, so its value is a property of the contract rather than of the
+  caller. The vector reads it and then reads it again through the behaviour rule, because a
+  contract that reported a different precision on a second call would make every amount read in
+  between ambiguous. Reading it must also emit nothing.
+kind: positive
+method: decimals
+tags: [decimals, positive, read-only, metadata]
+
+fixtures:
+  actors:
+    - name: alice
+      kind: account
+      description: A funded account, present so the state the invariant ranges over is not empty.
+  balances:
+    alice: "1000"
+  allowances: []
+  total_supply: "1000"
+  ledger:
+    sequence: 1000
+    timestamp: "2026-01-15T12:00:00Z"
+  authorization:
+    alice: true
+
+inputs: {}
+
+authorization:
+  actors: []
+  expected: not_required
+
+expected:
+  outcome: success
+  returns:
+    kind: literal
+    value: 7
+  state_assertions:
+    - id: reading-the-scale-changes-no-balance
+      description: A metadata read must not alter the sum of all balances.
+      resource:
+        kind: total_supply
+      predicate:
+        kind: unchanged
+        target:
+          kind: sum
+          over: balances
+  events:
+    required: []
+    forbidden: [transfer, approve, burn]
+  invariants:
+    - reads-are-repeatable
+
+assertions: []
+
+rationale: >-
+  Seven decimals is the Stellar convention for a seven-decimal asset, and a contract that reports
+  a different precision than the one it uses misleads every client that formats an amount for
+  display — a failure that is invisible to the contract's own arithmetic and to any balance
+  assertion. The prohibition on events is as important as the value: a metadata read that emitted
+  a transfer event would feed a movement that never happened into every indexer that trusts the
+  log.
+references:
+  - https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner

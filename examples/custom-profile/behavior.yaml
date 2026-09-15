@@ -1,0 +1,73 @@
+# yaml-language-server: $schema=../../../estamora-conformance-spec/schema/behavior.schema.json
+behaviors:
+  - id: a-read-does-not-write
+    summary: A read-only call must leave the account it read exactly as it found it.
+    description: >-
+      Stated over each of the four methods with the value it returned, rather than as a
+      generic "nothing changed" rule. A contract that rewrites an entry while reading it —
+      a lazy migration, a cache write, a counter incremented on access — returns the right
+      number and changes the contract's state, and the consequence is that two observers
+      reading the same account at the same ledger sequence can disagree.
+
+      The postcondition compares the value the method returned with the value a second read
+      of the same account reports, so it holds for every starting balance rather than for the
+      amounts a vector happens to use.
+    method: balance
+    kind: success
+    preconditions: []
+    postconditions:
+      - kind: equal
+        left:
+          kind: read
+          method: balance
+          args:
+            - kind: input
+              name: address
+        right:
+          kind: read
+          method: balance
+          args:
+            - kind: input
+              name: address
+    expect_failures: []
+    expect_events: []
+    forbid_events: []
+    invariants:
+      - reads-are-repeatable
+    notes:
+      - >-
+        A postcondition of this shape is trivially true for a pure implementation, and that
+        is not a reason to omit it. The rule is what makes the *absence* of a write a
+        checked requirement rather than an assumption, and the runner reports it as an
+        inapplicable check on the vectors where the call was refused rather than counting it
+        as a pass.
+
+  - id: decimals-is-constant-within-a-run
+    summary: The reported scale factor must not change between reads within a run.
+    description: >-
+      `decimals` takes no arguments, so its value is a property of the contract rather than
+      of the caller. A contract that reported a different precision on a second call would
+      make every amount read in between ambiguous, and an indexer that had already converted
+      a balance using the first value would have no way to know.
+
+      The requirement is scoped to a run rather than to the deployment's lifetime. Requiring
+      permanence would need a rule about upgrades, which is a question about the contract's
+      governance and not about its read surface.
+    method: decimals
+    kind: success
+    preconditions: []
+    postconditions:
+      - kind: equal
+        left:
+          kind: read
+          method: decimals
+          args: []
+        right:
+          kind: read
+          method: decimals
+          args: []
+    expect_failures: []
+    expect_events: []
+    forbid_events: []
+    invariants:
+      - reads-are-repeatable

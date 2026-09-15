@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=../../../estamora-conformance-spec/schema/authorization.schema.json
+authorization_rules:
+  - id: no-authorization-for-reads
+    summary: No principal may be asked to authorize any of the read-only methods.
+    description: >-
+      Stated as a rule rather than left unstated, because the two are not the same
+      requirement. A bundle that simply said nothing about authorization would pass a
+      contract that demanded a signature to read a public balance; a bundle that states this
+      rule fails it, and the failure is distinguishable from a bundle that never asked the
+      question.
+
+      The rule covers all four methods at once because the answer is the same for each and
+      because a read surface is a single claim: an interface that requires a signature for
+      `balance` but not for `name` is inconsistent in a way that a per-method rule would
+      report four times instead of once.
+    methods:
+      - balance
+      - decimals
+      - name
+      - symbol
+    actor:
+      kind: none
+    coverage:
+      mode: at_most
+      arguments: []
+    unauthorized:
+      kind: succeed
+    wrong_actor:
+      kind: succeed
+    replay_sensitive: false
+    notes:
+      - >-
+        `at_most` with an empty argument set is the encoding of "the contract must not demand
+        authorization over any argument". `exact` is reserved for a rule that names what its
+        actor must cover, and the schema rejects an empty `exact` set so that the two cannot
+        be confused for one another.
+      - >-
+        `wrong_actor` is `succeed` because there is no actor to get wrong. With no
+        authorization in play there is no principal whose signature could belong to somebody
+        else, and the alternative — an absent or undefined value — would be a branch no vector
+        could ever exercise.

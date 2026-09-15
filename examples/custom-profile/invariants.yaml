@@ -1,0 +1,65 @@
+# yaml-language-server: $schema=../../../estamora-conformance-spec/schema/invariant.schema.json
+invariants:
+  - id: reads-are-repeatable
+    title: Two reads of the same resource in one run report the same value
+    kind: state_unchanged
+    severity: error
+    summary: Reading must not change what is read.
+    description: >-
+      Scoped to the four read-only methods and to both outcomes, so the property is checked
+      on the calls that succeeded and on the ones that failed. Scoping it to success alone
+      would let a contract satisfy it by failing, which is a shape of requirement this
+      project exists to refuse.
+
+      An invariant rather than a per-method postcondition, because it is the same property
+      of the whole surface: the two behaviours state it where a return value is available to
+      compare, and this states it where one is not.
+    scope:
+      methods:
+        - balance
+        - decimals
+        - name
+        - symbol
+      outcomes:
+        - success
+        - failure
+    rationale: >-
+      A read that writes makes the contract's state a function of how often it has been
+      observed. Two consumers that read the same account at the same ledger sequence can
+      then disagree, and neither is wrong about what it was told. It is also the failure
+      mode that a mutating-interface suite cannot see at all: no transfer is involved, so no
+      balance-change assertion is in a position to notice.
+    references:
+      - https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner
+
+  - id: balances-are-non-negative
+    title: No balance is ever negative
+    kind: bounds
+    severity: error
+    summary: Every account's balance must be greater than or equal to zero.
+    description: >-
+      Included even though this profile declares no mutating method, because the corpus
+      reads balances and a negative one is not a quantity the interface can represent.
+      Checking it here means a contract that is already negative before anything is invoked
+      is reported as such rather than as a read that returned an inexplicable value.
+    scope:
+      methods:
+        - balance
+      outcomes:
+        - success
+        - failure
+    resource: balances
+    predicate:
+      kind: greater_or_equal
+      left:
+        kind: resource_member
+      right:
+        kind: literal
+        value: "0"
+    rationale: >-
+      A negative balance has no representation in the token's own model, so every assertion
+      evaluated against it is evaluated against a state the model cannot express. Treating it
+      as a precondition for trusting any other result is more useful than reporting the
+      downstream arithmetic failure it produces.
+    references:
+      - https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner

@@ -1,0 +1,89 @@
+# yaml-language-server: $schema=../../estamora-conformance-spec/schema/profile.schema.json
+#
+# A worked example of a profile bundle, kept beside the runner so that a contributor
+# authoring one has something that validates and executes to read alongside
+# `docs/profile-format.md`.
+#
+# It measures the read surface of a token and says nothing at all about transfers. That
+# is a deliberate choice rather than an unfinished one: it is the smallest bundle that
+# uses every document, and it demonstrates the property a profile is most often
+# misunderstood to have — a profile states what is measured, and an interface it does not
+# mention is not thereby required.
+estamora_spec_version: "1.0"
+
+profile:
+  id: token-reads
+  version: "1.0"
+  title: Token Read Surface
+  status: experimental
+  summary: >-
+    The four read-only methods of a token — balance, decimals, name and symbol — with their
+    return types, their absence of authorization, and the requirement that reading changes
+    nothing.
+  description: >-
+    A read surface is worth a profile of its own because its failure modes are unlike a
+    mutating interface's. A read that demands authorization breaks every indexer that
+    consumes the token. A read that returns a rounded, capped or cached number is wrong in
+    a way no balance-change assertion can see, because nothing about the call's own success
+    distinguishes it. And a read that writes is the defect that only shows up when two
+    consumers observe different values for the same account.
+
+    The bundle therefore states three things about each method: what it returns, that no
+    principal may be asked to sign, and that the state it read is exactly the state it
+    left. The last of those is stated as an invariant rather than as a postcondition, so
+    that it applies to the whole surface rather than being restated per method.
+
+  license: Apache-2.0
+
+  specification:
+    name: EXAMPLE-0001
+    title: Token Read Surface
+    version: "1.0"
+    status: draft
+    url: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner
+    updated: "2026-09-15"
+
+  maintainers:
+    - winningtalker-commits
+
+  compatibility:
+    interface: partial
+    notes:
+      - >-
+        Partial by construction. The contract this example is measured against implements
+        the whole token surface; this bundle declares four read-only methods of it. An
+        undeclared method is outside what was measured, not exempt from a requirement.
+      - >-
+        A partial profile is honest for an example and inadequate as a standard. A contract
+        described as conformant on the strength of this bundle has been measured on four
+        methods, and any report that did not make that visible would overstate it.
+
+  provenance:
+    source: upstream-specification
+    derived_from: >-
+      The read-only subset of SEP-41, restated with the return semantics and the
+      authorization expectations made explicit.
+    interpretation_notes:
+      - >-
+        Each of the four methods is transcribed from SEP-41. Nothing is invented, which is
+        why the same contract is conformant under both profiles; where the two disagree,
+        SEP-41 is right and this file has the defect.
+      - >-
+        SEP-41 does not say whether `name` and `symbol` may change after deployment. This
+        bundle interprets that as: they are observable values, and the requirement is that
+        they are non-empty and that reading them does not alter them. Whether an issuer may
+        rename a token is outside what this profile measures, and saying so here is the
+        point of an interpretation note — the ambiguity is recorded rather than resolved by
+        inventing a requirement.
+
+includes:
+  methods: methods.yaml
+  authorization: authorization.yaml
+  events: events.yaml
+  behavior: behavior.yaml
+  invariants: invariants.yaml
+  failures: failures.yaml
+  vectors:
+    - balance
+    - decimals
+  shared_vectors: []

@@ -114,6 +114,38 @@ fn a_tag_filter_measures_only_the_vectors_it_selects() {
 }
 
 #[test]
+fn the_profile_the_documentation_teaches_with_actually_measures_the_fixture() {
+    // `examples/custom-profile` is not decoration: `docs/profile-format.md` and
+    // `examples/custom-profile/README.md` both tell a reader to run it, and both quote its
+    // result. A profile quoted in documentation that no longer validates, or that has
+    // stopped being conformant against the reference contract, teaches a mistake — and it
+    // is exactly the kind of drift nobody notices, because nothing else reads it.
+    //
+    // It is measured through the fixture specification root rather than the real one, so
+    // this test runs on a checkout with no sibling specification repository. The bundle
+    // references no shared document, so the root it is resolved against makes no
+    // difference to what it requires.
+    let bundle = harness::repo_root().join("examples/custom-profile");
+    assert!(
+        bundle.join("profile.yaml").is_file(),
+        "the example bundle has moved; {} no longer holds a profile",
+        bundle.display()
+    );
+    let outcome = harness::run_bundle(&bundle, "none")
+        .unwrap_or_else(|problem| panic!("the example bundle could not be executed: {problem}"));
+    assert!(
+        harness::failures(&outcome).is_empty(),
+        "the example profile must hold against the reference contract; failures: {:#?}",
+        harness::failures(&outcome)
+    );
+    assert_eq!(harness::status(&outcome), ConformanceStatus::Conformant);
+    assert_eq!(
+        harness::vector_ids(&outcome),
+        vec!["balance-is-reported-exactly", "decimals-reports-the-scale"]
+    );
+}
+
+#[test]
 fn a_tag_filter_that_selects_nothing_is_reported_rather_than_passing_quietly() {
     // The dangerous outcome is not an error: it is a run that measured nothing and said
     // CONFORMANT. The verdict must be undecided, and the reason must be recorded.

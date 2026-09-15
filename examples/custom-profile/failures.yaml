@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=../../../estamora-conformance-spec/schema/failure.schema.json
+#
+# This profile declares no failure mode, and the empty document is a claim rather than an
+# omission: every call in the read surface is required to succeed for a syntactically valid
+# address, so there is no situation in which a conformant implementation is permitted to
+# refuse one.
+#
+# The document exists because the manifest requires it. A missing `failures.yaml` would make
+# "this profile states that nothing may fail" and "somebody forgot to declare the failures"
+# the same thing to a reader and to the loader, and the second is the failure mode worth
+# refusing: a requirement that goes missing by accident is indistinguishable, in a report,
+# from one that was never made.
+failures: []

@@ -1,0 +1,84 @@
+# yaml-language-server: $schema=../../../../../../estamora-conformance-spec/schema/vector.schema.json
+id: balance-is-reported-exactly
+profile: token-reads
+profile_version: "1.0"
+title: A funded balance is reported exactly, without authorization and without writing
+description: >-
+  Alice holds 1000 and her balance is read with nothing signed. The call must return exactly
+  1000, and the account it read must be exactly as it was afterwards. The vector covers the
+  two defects a read surface actually has: a value that is rounded, capped or cached, which no
+  mutating vector could see, and a read that writes, which makes two observers of the same
+  account disagree.
+kind: positive
+method: balance
+tags: [balance, positive, read-only]
+
+fixtures:
+  actors:
+    - name: alice
+      kind: account
+      description: The holder whose balance is read.
+    - name: bob
+      kind: account
+      description: An account holding nothing, present so the invariant has more than one member to range over.
+  balances:
+    alice: "1000"
+    bob: "0"
+  allowances: []
+  total_supply: "1000"
+  ledger:
+    sequence: 1000
+    timestamp: "2026-01-15T12:00:00Z"
+  authorization:
+    alice: true
+
+inputs:
+  address:
+    kind: actor
+    ref: alice
+
+authorization:
+  actors: []
+  expected: not_required
+
+expected:
+  outcome: success
+  returns:
+    kind: literal
+    value: "1000"
+  state_assertions:
+    - id: the-read-balance-is-unchanged
+      description: Reading a balance must leave that balance exactly as it was.
+      resource:
+        kind: balance
+        account: alice
+      predicate:
+        kind: equal
+        left:
+          kind: read
+          method: balance
+          args:
+            - kind: actor
+              ref: alice
+        right:
+          kind: literal
+          value: "1000"
+  events:
+    required: []
+    forbidden: [transfer, approve, burn]
+  invariants:
+    - reads-are-repeatable
+    - balances-are-non-negative
+
+assertions: []
+
+rationale: >-
+  `expected: not_required` is a claim in its own right rather than the absence of one: the rule
+  `no-authorization-for-reads` states that no principal may be asked to sign, and a contract
+  that demanded one to read a public balance fails it. The state assertion is not redundant
+  with the return value, because a contract that returned the right number and rewrote the entry
+  it read it from would satisfy the return check alone. The forbidden-events list is a
+  requirement about absence, evaluated as one: a read that emitted a transfer event would feed
+  a movement into every indexer that trusts the log.
+references:
+  - https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner
