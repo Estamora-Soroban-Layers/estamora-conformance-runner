@@ -171,7 +171,7 @@ Pick by what you need to be able to say afterwards.
 ### A released binary
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Estamora-Soroban-Layers/estamora-conformance-runner/v0.1.1/scripts/install-binary.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Estamora-Soroban-Layers/estamora-conformance-runner/v0.1.2/scripts/install-binary.sh | sh
 ```
 
 The script detects the platform, downloads the matching archive from the release, checks it
@@ -189,7 +189,7 @@ to be trustworthy about somebody else's contract.
 | macOS, Apple silicon | `estamora-aarch64-apple-darwin.tar.gz` |
 | Windows, x86-64 | `estamora-x86_64-pc-windows-msvc.tar.gz` |
 
-`--version v0.1.1` pins a release instead of taking the latest, `--target` overrides the
+`--version v0.1.2` pins a release instead of taking the latest, `--target` overrides the
 detected platform, and `--dir` chooses where it lands. Every archive also carries its own
 `README`, its licence and a `VERSION` file, so what was shipped and what the tool reports
 cannot disagree.
@@ -198,7 +198,7 @@ cannot disagree.
 
 ```bash
 cargo install --locked --git https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner \
-  --tag v0.1.1 estamora-cli
+  --tag v0.1.2 estamora-cli
 ```
 
 This compiles from source, so it needs a Rust toolchain and several minutes, and in exchange

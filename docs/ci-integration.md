@@ -81,7 +81,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: Estamora-Soroban-Layers/estamora-conformance-spec
-          ref: v0.1.1
+          ref: v0.1.2
           path: estamora-conformance-spec
 
       - name: Build the contract
@@ -108,7 +108,7 @@ release channel happened to point at. The cost is a few minutes on a cold runner
 the pinning, install a released binary instead and pass `install: false`.
 
 **Pin a release, not a major tag, when a verdict has to reproduce.**
-`@v1` follows the current major version, so it moves; `@v0.1.1` does not. Use the major tag
+`@v1` follows the current major version, so it moves; `@v0.1.2` does not. Use the major tag
 while you are adopting this, and a release tag once a result you have published has to be
 reproducible from the workflow that produced it.
 
@@ -127,7 +127,7 @@ the verdict itself rather than on a bare failure:
         uses: Swatinem/rust-cache@v2
 
       - name: Measure it
-        uses: Estamora-Soroban-Layers/estamora-conformance-runner@v0.1.1
+        uses: Estamora-Soroban-Layers/estamora-conformance-runner@v0.1.2
         with:
           spec: estamora-conformance-spec
           profile: sep-41@1.0
@@ -152,7 +152,7 @@ install a second one. The released binary and the CLI are the portable surface:
 ```yaml
       - name: Install Estamora
         run: |
-          curl -fsSL https://raw.githubusercontent.com/Estamora-Soroban-Layers/estamora-conformance-runner/v0.1.1/scripts/install-binary.sh | sh
+          curl -fsSL https://raw.githubusercontent.com/Estamora-Soroban-Layers/estamora-conformance-runner/v0.1.2/scripts/install-binary.sh | sh
 
       - name: Measure it
         run: |

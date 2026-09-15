@@ -43,6 +43,53 @@ incorrect verdict is fixed rather than preserved.
 
 Nothing yet.
 
+## [0.1.2] - 2026-09-15
+
+The first release whose crates are published to crates.io, and the two report defects that
+would have been permanent once they were. A version on crates.io cannot be withdrawn, so the
+choice was a release that carries the fixes or a release that does not.
+
+A patch, under the qualification at the top of this file rather than in spite of it. Both
+fixes change report *content*, which the policy there calls a major change, and the
+relaxation for a pre-`1.0` patch is what applies: these are wrong values being corrected,
+not a format being redesigned. There is also nobody to break — this is the first
+publication — and a report whose `$schema` names a host that does not resolve is not a
+format worth preserving for compatibility's sake.
+
+### Added
+
+* **`scripts/check-publish-plan.py`**, which reads the crates.io publish sequence out of
+  `.github/workflows/release.yml` and checks it against what Cargo resolves: the sequence
+  has to be exactly the publishable crates whose whole normal-dependency closure is itself
+  publishable, in an order Cargo can follow. Every exclusion has to name a structural
+  reason, so an exclusion that outlives its cause is reported instead of quietly keeping a
+  command unobtainable. `scripts/test-check-publish-plan.sh` runs it against mutated copies
+  of the real workflow, one per way the plan can be wrong, and CI has a `release plan` job
+  that runs both.
+
+### Fixed
+
+* **A report names a schema that exists.** Every report's `$schema` pointed at
+  `https://estamora.dev/schema/report.schema.json`, a host with no DNS record, so a consumer
+  who followed it to validate a report against the schema the report claims to conform to
+  had nothing to fetch. It now names the document the specification serves, and a test
+  asserts the constant against that document's own `$id`, so the two cannot drift apart
+  again.
+* **A code hash has one form, whichever route read the bytes.** A report of a `.wasm`
+  artifact recorded `sha256:35d0ef…`, while the same contract measured over RPC recorded
+  bare hex. `report.schema.json` requires `^[0-9a-f]{64}$`, so a report produced from a
+  local artifact did not validate against the schema it names, and one deployment had two
+  spellings depending on how it was read. Both routes now record the 64-character lowercase
+  form, and the test that checks the report against the schema carries a real hash, because
+  the report it used to build had none and the field's format was never validated.
+* **The documented publish sequence no longer names a command that cannot finish.** It ended
+  with `cargo publish -p estamora-cli`, and that command can never succeed: the CLI takes
+  `estamora-fixture-token` as a normal dependency, the fixture is `publish = false`, and
+  packaging rewrites a path dependency into a registry requirement of the same version — so
+  the requirement the command would carry names a version no registry will hold. The command
+  is distributed as a release binary and through `cargo install --git`; the README and the
+  workflow now say which crates go to crates.io and which do not.
+
 ## [0.1.1] - 2026-09-15
 
 This release makes the tool installable. No verdict changes: the rule in `estamora-core`
@@ -192,6 +239,7 @@ untouched, so a contract measured against the same profile reaches the same resu
 * **Nothing proves security.** Conformance is behavioural compatibility with a named
   profile over a named corpus, and nothing more.
 
-[Unreleased]: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/releases/tag/v0.1.0

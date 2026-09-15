@@ -2,9 +2,9 @@
 #
 # Install the `estamora` binary from a published release.
 #
-#   curl -fsSL https://raw.githubusercontent.com/Estamora-Soroban-Layers/estamora-conformance-runner/v0.1.1/scripts/install-binary.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/Estamora-Soroban-Layers/estamora-conformance-runner/v0.1.2/scripts/install-binary.sh | sh
 #
-#   ./install-binary.sh --version v0.1.1
+#   ./install-binary.sh --version v0.1.2
 #   ./install-binary.sh --dir "$HOME/.local/bin"
 #   ./install-binary.sh --target aarch64-apple-darwin
 #
