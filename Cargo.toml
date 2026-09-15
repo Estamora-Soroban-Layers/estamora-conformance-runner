@@ -105,8 +105,15 @@ stellar-xdr = { version = "27.0.0", features = ["curr", "std"] }
 # JSON Schema validation, so the runner rejects a profile the same way the
 # specification's own tooling does instead of re-deriving the rules.
 jsonschema = "0.56.0"
-# Report rendering
-quick-xml = "0.38.3"
+# Report rendering. Held at or above 0.41.0: two advisories stand against earlier
+# releases — an unbounded namespace-declaration allocation in `NsReader`, and quadratic
+# run time when checking a start tag for duplicate attribute names. The workspace uses
+# only `escape`, which neither advisory reaches, and that is not a reason to keep it.
+# `deny.toml` denies a vulnerable dependency rather than a reachable path to one, on the
+# grounds that a tool whose output people gate merges on should not carry a known-bad
+# parser of untrusted input however narrowly it is used. Estamora's claim is about the
+# behaviour of somebody else's contract; it has no business shipping one of these.
+quick-xml = "0.42.0"
 # Tests and benchmarks
 assert_cmd = "2.2.2"
 predicates = "3.1.4"
