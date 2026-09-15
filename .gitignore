@@ -26,3 +26,10 @@ estamora.local.toml
 # Insta snapshots are reviewed and committed; the pending directory is not.
 **/*.snap.new
 **/.insta-pending
+
+# The Soroban test host writes a JSON snapshot of ledger state beside the tests
+# that use it. It is host state, not an artefact of this repository: two hosts at
+# the same ledger point produce it, its contents are an SDK implementation
+# detail, and committing it would make an SDK upgrade look like a change to the
+# runner.
+test_snapshots/
