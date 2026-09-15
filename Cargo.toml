@@ -20,6 +20,7 @@ resolver = "3"
 members = [
   "crates/estamora-core",
   "crates/estamora-profile",
+  "crates/estamora-vectors",
   "crates/estamora-soroban",
 ]
 

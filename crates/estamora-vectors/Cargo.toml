@@ -1,0 +1,25 @@
+[package]
+name = "estamora-vectors"
+description = "Loads, validates and resolves the Estamora test-vector corpus."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+estamora-core = { path = "../estamora-core" }
+estamora-profile = { path = "../estamora-profile" }
+serde = { workspace = true }
+serde_yaml_ng = { workspace = true }
+time = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

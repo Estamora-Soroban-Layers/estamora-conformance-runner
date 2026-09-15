@@ -35,13 +35,13 @@ aspirational. What exists and is tested today:
 | `estamora-core` | **Implemented.** The error taxonomy, the six conformance statuses, the rule that reduces vector results to a verdict, and the exit-code contract. |
 | `estamora-soroban` | **Implemented for local execution.** A deterministic host pinned to a declared ledger point, contract registration from WebAssembly or an in-repository fixture, invocation with outcome classification, event capture, and authorization as a scenario property with the demanded authorizations recorded. |
 | `estamora-profile` | **Implemented.** Loads a bundle, refuses a specification format it cannot execute, refuses a manifest entry that escapes the bundle or a document that is oversized, parses all six documents into typed structures, checks every cross-reference between them, keeps a valid bundle's warnings rather than discarding them, and refuses a bundle stored under an identity other than the one it declares. |
+| `estamora-vectors` | **Implemented.** Loads the corpus a profile declares — its own operation directories plus the shared families it consumes — checks every vector against the profile it was found under, and excludes a profile-independent vector whose method the profile does not implement rather than inventing a defect. |
 
 Nothing in the table below exists yet. It is the intended layout, listed so that the
 boundary between crates is reviewable before the code is written.
 
 | Crate | Responsibility |
 | --- | --- |
-| `estamora-vectors` | Load and resolve the vector corpus |
 | `estamora-assertions` | Evaluate one profile requirement against one observation |
 | `estamora-report` | Render results as JSON, Markdown and JUnit |
 | `estamora-certification` | Digest, receipt and receipt verification |

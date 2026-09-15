@@ -785,6 +785,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "estamora-vectors"
+version = "0.1.0"
+dependencies = [
+ "estamora-core",
+ "estamora-profile",
+ "serde",
+ "serde_yaml_ng",
+ "tempfile",
+ "time",
+]
+
+[[package]]
 name = "ethnum"
 version = "1.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
