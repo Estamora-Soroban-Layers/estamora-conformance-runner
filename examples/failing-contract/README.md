@@ -18,9 +18,12 @@ failing test says what broke:
 | `fixture:allows-overdraft` | permits a transfer above the balance | Produces a balance the interface cannot represent. |
 | `fixture:missing-decimals` | no `decimals` method at all | The interface defect, and the most instructive one. |
 
-They are compiled to real Wasm and executed in a real Soroban host with time and
-authorization pinned. None of them is a mock, and none of them is a contract that
-was written to fail a specific assertion: each is a mistake a real token has made.
+They are real contract code, written against the same SDK a user's contract uses, and
+executed in a real Soroban host with time and authorization pinned. They are registered
+from their Rust types rather than deployed from WebAssembly, which is how a fixture can
+exist at all without a build step — see `docs/local-testing.md`. None of them is a mock,
+and none of them is a contract written to fail a specific assertion: each is a mistake a
+real token has made.
 
 ## Run one
 

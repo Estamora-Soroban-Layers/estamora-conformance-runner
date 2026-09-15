@@ -6,8 +6,10 @@
 [toolchain]
 channel = "1.98.1"
 components = ["rustfmt", "clippy"]
-# Contract fixtures under `fixtures/contracts/` are compiled to WebAssembly, so
-# the target has to be available for the integration tests that build them. The
-# runner's own crates are never built for it.
+# Nothing in this workspace is built for WebAssembly: the fixture contracts are
+# registered from their Rust types and the runner is a host program. The target is
+# pinned anyway, so that measuring your own contract — the case
+# `docs/local-testing.md` and `examples/local-contract/` walk through — does not
+# start with adding a target and working out which one is current.
 targets = ["wasm32v1-none"]
 profile = "minimal"

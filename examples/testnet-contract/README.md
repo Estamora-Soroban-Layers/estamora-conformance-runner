@@ -72,11 +72,11 @@ it.
 ## Networks without a live node
 
 For the parts of the pipeline that must be exercised deterministically, the local
-ledger *is* the abstraction: `fixtures/contracts/` are compiled to real Wasm and
-run in a real Soroban host, with the ledger sequence, the timestamp and every
-account's authorization fixed by the vector. That is not a mock of a network — it
-is the same execution environment, with time and randomness pinned — and it is why
-a stored report can be re-read and produce the same verdict a year later.
+ledger *is* the abstraction: `fixtures/contracts/` are real contract code, run in a real
+Soroban host, with the ledger sequence, the timestamp and every account's authorization
+fixed by the vector. That is not a mock of a network — it is the same execution
+environment, with time and randomness pinned — and it is why a stored report can be
+re-read and produce the same verdict a year later.
 
 Testnet execution is therefore opt-in and separate from the default suite. It is
 never a reason for the ordinary `cargo test` to require a network, and `scripts/`

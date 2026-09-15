@@ -95,9 +95,10 @@ incorrect verdict is fixed rather than preserved.
 * **A documented exit-code contract** in which a failure never produces `0`, `1` or
   `2` unless it names the contract, so an unreachable network can never be reported
   as non-conformance.
-* **Seven fixture contracts** — the reference token and six copies of it, each wrong
-  in exactly one way — compiled from Rust in the workspace, so the end-to-end suite
-  needs no network and no artifact to be built by hand.
+* **Eight fixture contracts** — the reference token and seven copies of it, each wrong
+  in exactly one way — written against the SDK in the workspace and registered from
+  their Rust types, so the end-to-end suite needs no network and no artifact to be
+  built by hand.
 * **An end-to-end test suite** in `integration-tests/`, one target per dimension,
   driving the library the way a user drives the CLI.
 * **Fuzzing targets** for the parsers, and benchmarks for profile loading, vector

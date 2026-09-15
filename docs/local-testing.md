@@ -30,8 +30,10 @@ $ ls target/wasm32v1-none/release/my_token.wasm
 
 `wasm32v1-none` is the current target for Soroban contracts. On older toolchains the
 same artifact comes from `wasm32-unknown-unknown`. `rust-toolchain.toml` in this
-repository pins `wasm32v1-none` for the workspace, so a fixture contract built here
-uses it.
+repository pins `wasm32v1-none`, so that a checkout can build a contract for these
+examples without adding the target yourself. The runner's own crates and its fixture
+contracts are never built for it: a fixture is registered from its Rust type, which is
+explained under *The local host is not a mock*.
 
 The runner reads the contract's interface from the artifact's `contractspecv0`
 section **before** deploying it. An artifact that publishes no spec section is
@@ -116,17 +118,29 @@ so its constructor — whatever its arguments — is never run. See
 
 ## The local host is not a mock
 
-`fixtures/contracts/` are compiled to real Wasm by the same Soroban SDK a user's
-contract is, and they run in a real Soroban host. The ledger sequence, the close
-time and every account's authorization are **fixed by the vector**, which is what
-makes a run reproducible: two runs of the same vector produce the same events, the
-same balances and the same verdict.
+The hosts are real and so is the contract code. `fixtures/contracts/` are written
+against the same Soroban SDK a user's contract is, and they are executed by the same
+host that executes a deployed contract — the runner never substitutes a mock for it.
+What is pinned is time: the ledger sequence, the close time and every account's
+authorization are **fixed by the vector**, which is what makes a run reproducible. Two
+runs of the same vector produce the same events, the same balances and the same
+verdict.
 
-That is not a simulation of a network. It is the same execution environment with
+A fixture is *registered from its Rust type* rather than deployed from WebAssembly,
+which is a real difference from the other two targets and has two consequences worth
+knowing. Its code is compiled natively rather than to Wasm, so it does not pass through
+the VM a deployed contract runs in; and it has no artifact to inspect, so it declares
+its own interface in the same shape that inspection produces from a real one — the
+reasoning is in `fixtures/contracts/conformance-token/src/interface.rs`. That is why
+`cargo test --workspace` needs neither a network nor a WebAssembly build: the fixtures
+are Rust crates in the workspace and the tests that measure them compile them as part
+of the build.
+
+What that does *not* change is the execution environment. It is the same host with
 time and randomness pinned, and it is why a stored report can be re-read and
-re-rendered a year later and produce the same document — which
-`integration-tests/` asserts against a report whose timestamp is pinned.
-`docs/testnet-testing.md` covers what changes when a real network is involved.
+re-rendered a year later and produce the same document — which `integration-tests/`
+asserts against a report whose timestamp is pinned. `docs/testnet-testing.md` covers
+what changes when a real network is involved.
 
 Two facts about the host shape the design and are worth knowing before reading the
 source:
