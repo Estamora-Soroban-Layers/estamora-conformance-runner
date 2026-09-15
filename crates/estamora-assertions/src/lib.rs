@@ -6,6 +6,15 @@
 //! written in — against a [`World`], and produces an [`Evaluation`] that says
 //! whether the requirement held and renders both sides for a reader.
 //!
+//! # The seven dimensions
+//!
+//! [`run::evaluate`] is the entry point. It evaluates interface compatibility,
+//! authorization, events, behaviour, state, invariants and failure, and returns one
+//! [`VectorOutcome`] holding every check that was made. The seven are deliberately
+//! not collapsed into a boolean: a caller must be able to see which claim failed, and
+//! a passing interface section must never be presented as evidence of correct
+//! behaviour.
+//!
 //! # What it is deliberately not
 //!
 //! It is not a Soroban crate by nature, even though it sits above one in the
@@ -25,14 +34,25 @@
 //! could make.
 #![forbid(unsafe_code)]
 
+pub mod dimensions;
 pub mod eval;
+pub mod observation;
+pub mod outcome;
+pub mod run;
 pub mod value;
 pub mod world;
 
+pub use dimensions::{
+    InterfaceInspection, InvariantReport, ObservedMethod, ObservedParameter, canonical_type,
+    observed_verifies_method,
+};
 pub use eval::{
     Environment, Evaluation, MAX_RESOLUTION_DEPTH, evaluate_predicate,
     evaluate_predicate_for_member, evaluate_value,
 };
+pub use observation::{CallResult, ObservedAuthorization, ObservedCall, ObservedEvent};
+pub use outcome::{AssertionOutcome, OutcomeDiagnostic, VectorOutcome};
+pub use run::{RunObservation, evaluate as evaluate_vector};
 pub use value::{Comparison, Value};
 pub use world::World;
 

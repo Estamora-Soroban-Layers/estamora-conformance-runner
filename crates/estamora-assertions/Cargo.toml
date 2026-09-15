@@ -14,13 +14,15 @@ categories.workspace = true
 [lints]
 workspace = true
 
-# The evaluator depends on nothing but the shared vocabulary, and that is
-# deliberate. It reaches state through its own `World` trait rather than through a
-# ledger, so every rule about comparison is testable without an execution
-# environment, and the crates that do know about Soroban stay below it.
+# The evaluator depends on the specification's own typed models rather than on its
+# documents' text, and on nothing that knows about Soroban. It reaches state through
+# its own `World` trait rather than through a ledger, so every rule about comparison
+# is testable without an execution environment, and the crates that do know about
+# Soroban stay below it.
 [dependencies]
 estamora-core = { path = "../estamora-core" }
-serde = { workspace = true }
+estamora-profile = { path = "../estamora-profile" }
+estamora-vectors = { path = "../estamora-vectors" }
 
 [dev-dependencies]
 serde_yaml_ng = { workspace = true }

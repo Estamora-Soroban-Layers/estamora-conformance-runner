@@ -36,14 +36,13 @@ aspirational. What exists and is tested today:
 | `estamora-soroban` | **Implemented for local execution.** A deterministic host pinned to a declared ledger point, contract registration from WebAssembly or an in-repository fixture, invocation with outcome classification, event capture, and authorization as a scenario property with the demanded authorizations recorded. |
 | `estamora-profile` | **Implemented.** Loads a bundle, refuses a specification format it cannot execute, refuses a manifest entry that escapes the bundle or a document that is oversized, parses all six documents into typed structures, checks every cross-reference between them, keeps a valid bundle's warnings rather than discarding them, and refuses a bundle stored under an identity other than the one it declares. |
 | `estamora-vectors` | **Implemented.** Loads the corpus a profile declares — its own operation directories plus the shared families it consumes — checks every vector against the profile it was found under, and excludes a profile-independent vector whose method the profile does not implement rather than inventing a defect. |
-| `estamora-assertions` | **Implemented for the expression algebra.** Interprets every value expression and predicate the format defines — comparisons, relative changes, aggregates over a resource set, arithmetic, composites — against a `World` trait that abstracts the execution environment, producing a result that held, or did not, or could not be evaluated. |
+| `estamora-assertions` | **Implemented.** Interprets every value expression and predicate the format defines — comparisons, relative changes, aggregates over a resource set, arithmetic, composites — against a `World` trait that abstracts the execution environment, and evaluates all seven conformance dimensions for one vector: interface compatibility, authorization, events, behaviour, state, invariants and failure. A requirement that could not be evaluated produces an undecidable vector rather than a failed one. |
 
 Nothing in the table below exists yet. It is the intended layout, listed so that the
 boundary between crates is reviewable before the code is written.
 
 | Crate | Responsibility |
 | --- | --- |
-| `estamora-assertions` | The seven per-dimension evaluators — interface, authorization, events, behaviour, state, invariants, failure — built on the algebra that now exists |
 | `estamora-report` | Render results as JSON, Markdown and JUnit |
 | `estamora-certification` | Digest, receipt and receipt verification |
 | `estamora-cli` | The `estamora` binary |
@@ -83,6 +82,28 @@ validated — it may be a working copy or a hand-edited fixture. Re-checking is 
 depth, and the two cross-repository tests in `crates/estamora-profile/tests/` are what hold
 the two validators in agreement: they load every bundle the specification publishes,
 including the SEP-41 profile, and fail if either side changes shape.
+
+### What the assertion layer decides, and what it refuses to decide
+
+It decides, for one vector, what the contract did and which requirements it satisfied. The
+seven dimensions are evaluated in a fixed order, and two of the orderings are requirements
+rather than preferences: the interface is inspected first, because a refusal is only
+readable once the method is known to exist, and behaviour is evaluated before invariants,
+because a behavioural rule names the invariants it requires.
+
+It does not decide whether a profile's requirements are the right ones, and it does not
+report a requirement it could not evaluate as a failed one. A read the contract cannot
+answer, arithmetic that left the representable range, or a value that is not comparable to
+the one the requirement names all make the vector **undecidable** — `error`, contributing
+nothing to a verdict — because blaming a contract for the runner's inability to measure it
+is the single most damaging mistake this system could make.
+
+Two applicability rules are worth knowing, because they decide whether a requirement is
+enforced at all. A behavioural rule applies only to vectors whose expected outcome matches
+the rule's kind, and, for a failure rule that names its failures, only to a vector that
+constructs one of them; a rule that does not apply is recorded as inapplicable rather than
+satisfied, since counting it as a pass would claim coverage the scenario never exercised.
+An invariant outside its declared scope is inapplicable in the same way.
 
 There is no CLI yet, so no command is documented here. Documenting a command that does not
 run would be worse than documenting none.

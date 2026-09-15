@@ -759,7 +759,8 @@ name = "estamora-assertions"
 version = "0.1.0"
 dependencies = [
  "estamora-core",
- "serde",
+ "estamora-profile",
+ "estamora-vectors",
  "serde_yaml_ng",
 ]
 
