@@ -1,0 +1,18 @@
+# Clippy configuration.
+#
+# The lint levels themselves live in `[workspace.lints]` in the root Cargo.toml,
+# because they are part of the build rather than part of this tool's invocation.
+# What belongs here is the context Clippy cannot infer.
+
+# The toolchain pinned in rust-toolchain.toml. Without this, Clippy suggests
+# newer standard-library APIs that the pinned compiler does not have, and the
+# suggestion does not compile.
+msrv = "1.98"
+
+# A conformance run allocates while parsing profiles and vectors, and those
+# documents are attacker-influenced. The thresholds are raised from the defaults
+# so that a warning here means a genuine unbounded pass rather than a loop over a
+# fixture.
+too-many-lines-threshold = 300
+type-complexity-threshold = 300
+
