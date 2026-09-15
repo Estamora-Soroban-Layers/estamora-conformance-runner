@@ -100,6 +100,47 @@ fn the_compact_json_is_what_a_receipt_would_digest() {
 }
 
 #[test]
+fn a_check_that_failed_anywhere_is_summarised_as_failed() {
+    // Found by running the real corpus against the conforming fixture. Behaviour rules
+    // are evaluated once per vector, so one identifier appears in many results, and the
+    // summary counts it once. Counting the *first* result let a requirement one
+    // scenario violated be reported as satisfied because another scenario had satisfied
+    // it — a summary stating the opposite of what the run found.
+    let assertion = |status: &str| ReportedAssertion {
+        id: "behavior-transfer-moves-exact-amount-postcondition-0".to_owned(),
+        category: "behavior".to_owned(),
+        status: status.to_owned(),
+        expected: "decrease by 250".to_owned(),
+        observed: "1000 -> 750".to_owned(),
+        detail: None,
+    };
+    let result = |id: &str, status: &str| VectorResult {
+        vector_id: id.to_owned(),
+        category: "positive".to_owned(),
+        status: status.to_owned(),
+        assertions: vec![assertion(status)],
+        diagnostics: Vec::new(),
+    };
+
+    // Passing first, failing second: the order must not decide the answer.
+    let summary = Summary::of(&[result("passes", "passed"), result("fails", "failed")]);
+    assert_eq!(summary.behavior.total, 1, "one identifier is one check");
+    assert_eq!(summary.behavior.failed, 1);
+    assert_eq!(summary.behavior.passed, 0);
+
+    // And the other way round, which is the order the old implementation survived.
+    let reversed = Summary::of(&[result("fails", "failed"), result("passes", "passed")]);
+    assert_eq!(reversed.behavior.failed, 1);
+    assert_eq!(reversed.behavior.passed, 0);
+
+    // A check that held everywhere is still counted once, as a pass.
+    let held = Summary::of(&[result("one", "passed"), result("two", "passed")]);
+    assert_eq!(held.behavior.total, 1);
+    assert_eq!(held.behavior.passed, 1);
+    assert_eq!(held.behavior.failed, 0);
+}
+
+#[test]
 fn an_undeclared_dimension_is_named_rather_than_guessed() {
     assert!(crate::model::category_of("interface").is_some());
     assert!(crate::model::category_of("security").is_none());

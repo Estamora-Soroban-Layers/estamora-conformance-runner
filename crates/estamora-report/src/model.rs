@@ -199,29 +199,24 @@ impl Summary {
     /// contract rather than of a scenario, so the same assertion identifiers appear
     /// in every vector's result; counting raw occurrences would multiply the
     /// evidence by the size of the corpus.
+    ///
+    /// An identifier that failed in any vector is counted as failed, however many
+    /// other vectors it held in. Reporting the first occurrence instead would let a
+    /// requirement that one scenario violated be summarised as satisfied because a
+    /// different scenario had satisfied it — which is the summary telling a reader
+    /// the opposite of what the run found.
     #[must_use]
     pub fn of(results: &[VectorResult]) -> Self {
         let mut summary = Self::default();
-        let mut seen: BTreeSet<&str> = BTreeSet::new();
+        // Identifier to whether it failed anywhere, so that the worst result each
+        // identifier reached is the one counted.
+        let mut seen: BTreeMap<&str, bool> = BTreeMap::new();
         for result in results {
             for assertion in &result.assertions {
-                if !seen.insert(assertion.id.as_str()) {
-                    continue;
-                }
-                let Some(category) = category_of(&assertion.category) else {
-                    // A category outside the seven cannot be produced by this
-                    // writer, and the report schema rejects it, so a document
-                    // carrying one is not one this runner made. Counting it would
-                    // invent a dimension.
-                    continue;
-                };
-                let tally = summary.dimension(category);
-                tally.total += 1;
-                if assertion.status == "failed" {
-                    tally.failed += 1;
-                } else {
-                    tally.passed += 1;
-                }
+                let failed = assertion.status == "failed";
+                seen.entry(assertion.id.as_str())
+                    .and_modify(|already| *already |= failed)
+                    .or_insert(failed);
             }
             // A violated warning-severity invariant is recorded as a diagnostic
             // rather than as a failed check, so that an upstream SHOULD cannot turn
@@ -236,6 +231,30 @@ impl Summary {
                 .invariants
                 .warnings
                 .saturating_add(u32::try_from(warnings).unwrap_or(u32::MAX));
+        }
+
+        // One pass over the deduplicated identifiers, so that the category each
+        // belongs to is read from the result it appeared in rather than from a
+        // second traversal of every vector.
+        let categories: BTreeMap<&str, &str> = results
+            .iter()
+            .flat_map(|result| result.assertions.iter())
+            .map(|assertion| (assertion.id.as_str(), assertion.category.as_str()))
+            .collect();
+        for (id, failed) in seen {
+            let Some(category) = categories.get(id).and_then(|name| category_of(name)) else {
+                // A category outside the seven cannot be produced by this writer,
+                // and the report schema rejects it, so a document carrying one is
+                // not one this runner made. Counting it would invent a dimension.
+                continue;
+            };
+            let tally = summary.dimension(category);
+            tally.total += 1;
+            if failed {
+                tally.failed += 1;
+            } else {
+                tally.passed += 1;
+            }
         }
         summary
     }
