@@ -43,6 +43,52 @@ incorrect verdict is fixed rather than preserved.
 
 Nothing yet.
 
+## [0.1.3] - 2026-09-15
+
+Every binary released before this one was unable to run a measurement against a `fixture:`
+target — the documented way to exercise the runner without a deployed contract, and the
+command in the README's own quickstart. It exited `134` with nothing at all on stdout or
+stderr. Measurement from a compiled artifact (`--contract <a .wasm>`) was unaffected, so a
+released binary could measure a deployed contract and could not measure the reference one.
+
+If you pinned `0.1.2` or earlier, the archives on those releases are affected. The
+installer's `--version` flag pins a release, and this is the release to pin.
+
+### Fixed
+
+* **A released binary can produce a verdict.** `[profile.release]` set `panic = "abort"`.
+  A Soroban contract reports a failure by panicking, and the `fixture:` path goes through
+  `soroban-env-host`'s test utilities, which replace the panic hook so that a panic from
+  inside a contract prints nothing, and then catch the unwind to turn it into a host error.
+  Under `abort` there is no unwind to catch and no hook left to print with, so the first
+  vector that expects a failure ended the process — and the corpus contains negative vectors
+  by design, so this was the first thing to happen in any run:
+
+  ```
+  $ estamora run --spec fixtures --profile conformance-token@1.0 --contract fixture:none
+  Aborted (core dumped)          # exit 134, zero bytes of stdout and stderr
+  ```
+
+  The same tree built for debug exited `0` and `1` exactly as documented, which is the
+  whole reason every test in this repository passed. `panic` is now stated as `unwind`
+  rather than left implicit, with the reason beside it, because implicit is how it came to
+  be `abort`: nothing above the profile mentioned a panic strategy at all.
+
+### Changed
+
+* **The exit-code contract is asserted on the profile that ships.** CI's `exit-code contract`
+  job built a debug binary, so the contract it verified was the debug profile's contract, and
+  the profile is where the behaviour differed. It now builds `--release` and asserts all six
+  documented codes — `0`, `1`, `3`, `5`, `64` and `4` — including a conformant run exiting
+  `0`, which the job had been missing. The measurement is printed rather than discarded,
+  because the failure this now catches printed nothing.
+* **The release workflow runs the binary it is about to attach.** `--version` was the only
+  thing that executed a built binary before it was packed, and `--version` exercises argument
+  parsing and nothing else — every binary this project released before this change passed it
+  and then aborted on a real measurement. Each platform now measures the reference fixture
+  with the exact file that is about to be packed, so a binary that cannot produce a verdict
+  cannot be attached to a release.
+
 ## [0.1.2] - 2026-09-15
 
 The first release whose crates are published to crates.io, and the two report defects that
@@ -239,7 +285,8 @@ untouched, so a contract measured against the same profile reaches the same resu
 * **Nothing proves security.** Conformance is behavioural compatibility with a named
   profile over a named corpus, and nothing more.
 
-[Unreleased]: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/releases/tag/v0.1.0
