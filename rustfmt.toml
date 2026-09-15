@@ -1,0 +1,9 @@
+# Formatting is not a matter of taste here: the repository is read as an
+# artefact. A diff that reflows unrelated code obscures the part of a change that
+# matters, which in this project is the part that could alter a verdict.
+edition = "2024"
+max_width = 100
+newline_style = "Unix"
+use_small_heuristics = "Default"
+use_field_init_shorthand = true
+match_block_trailing_comma = true
