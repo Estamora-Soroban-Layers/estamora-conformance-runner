@@ -15,6 +15,22 @@
 //! [`Defect::MissingDecimals`], so the one fixture that genuinely omits a method is the
 //! one fixture whose declaration omits it.
 //!
+//! # The one place a declaration is not the artifact's shape
+//!
+//! The mutating methods below declare no return, which is what SEP-0041 declares for
+//! them. The fixture's Rust functions spell their refusals as `Result<(), Error>`,
+//! because a fixture is called from Rust tests that want the error back — and a signature
+//! returning `Result` would publish `result<void,error>` if this crate were ever compiled
+//! to an artifact. The runtime behaviour is the same either way: the generated wrapper
+//! traps on `Err`, so the host records the same contract error a `panic_with_error!`
+//! produces, and the failure dimension cannot tell the two spellings apart.
+//!
+//! The distinction matters because the two routes are not interchangeable. This
+//! declaration is the standard's surface, which is what the interface dimension should
+//! compare a fixture against; `fixtures/contracts/measurable-token` is a real artifact
+//! and therefore has to match the standard in the bytes, which is why it spells its
+//! refusals as traps and imports `String` under its own name.
+//!
 //! # Why the setup entry points are listed
 //!
 //! `fixture_mint` and `fixture_approve` really are exposed by every fixture, so they are

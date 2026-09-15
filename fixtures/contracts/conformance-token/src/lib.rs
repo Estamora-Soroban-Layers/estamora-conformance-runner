@@ -69,8 +69,7 @@
 
 use soroban_sdk::testutils::Register as _;
 use soroban_sdk::{
-    Address, Env, MuxedAddress, String as SorobanString, contract, contractevent, contractimpl,
-    contracttype,
+    Address, Env, MuxedAddress, String, contract, contractevent, contractimpl, contracttype,
 };
 
 pub mod interface;
@@ -501,13 +500,13 @@ macro_rules! token_impl {
             }
 
             /// Returns the token's name.
-            pub fn name(env: Env) -> SorobanString {
-                SorobanString::from_str(&env, TOKEN_NAME)
+            pub fn name(env: Env) -> String {
+                String::from_str(&env, TOKEN_NAME)
             }
 
             /// Returns the token's symbol.
-            pub fn symbol(env: Env) -> SorobanString {
-                SorobanString::from_str(&env, TOKEN_SYMBOL)
+            pub fn symbol(env: Env) -> String {
+                String::from_str(&env, TOKEN_SYMBOL)
             }
         }
     };
