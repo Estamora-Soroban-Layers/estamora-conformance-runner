@@ -95,13 +95,32 @@ time = { version = "0.3.45", features = ["formatting", "parsing", "serde"] }
 # Soroban. The runner executes contracts through the SDK's test host locally and
 # through the RPC client against a network.
 soroban-sdk = { version = "27.0.6", features = ["testutils"] }
-# No RPC client is declared. Reading a deployed contract's state and sending a
-# transaction to a network needs one, and the crate that provides it is not available to
-# this workspace: a decoration that cannot be compiled is worse than an honest absence,
-# because it makes an unimplemented path look implemented. `estamora-cli`'s `Target`
-# models the network case and refuses it with the reason named, as an environment
-# failure rather than as anything about a contract.
-stellar-xdr = { version = "27.0.0", features = ["curr", "std"] }
+# The network transport. A deployed contract is *resolved* over RPC — read out of the
+# ledger as WebAssembly — and then *measured* in the local host, exactly like a `.wasm`
+# artifact on disk. That is why the only thing needed here is a way to read ledger
+# entries: a verdict must not depend on a funded account, on a shared ledger's state, or
+# on a node's willingness to accept a transaction, and it must be reproducible.
+#
+# `reqwest` is used directly rather than through a Soroban RPC client crate. The two
+# calls this needs are `getNetwork` and `getLedgerEntries`, the XDR types below already
+# decode the answers, and the client crates that exist would bring an async runtime and
+# a second copy of `stellar-xdr` into a program that has no other use for either.
+#
+# `rustls` rather than the platform TLS stack, so that a released binary does not depend
+# on whichever OpenSSL the machine that installed it happens to have.
+reqwest = { version = "0.13.5", default-features = false, features = ["blocking", "json", "rustls"] }
+# StrKey decoding, so that a contract identifier is parsed by the implementation the
+# rest of the ecosystem uses rather than by a base32 decoder written here.
+stellar-strkey = "0.0.16"
+# The XDR types a ledger entry is decoded with.
+#
+# `base64` is not optional: a ledger entry arrives from RPC as base64-encoded XDR, and
+# without the feature the constructors that decode it are compiled out. The previous
+# spelling here named a `curr` feature that this major does not have — a leftover from
+# the layout where the crate carried two protocol versions side by side and selected
+# between them with `curr`/`next`. It went unnoticed because nothing in the workspace
+# depended on this crate, so Cargo never had to validate the feature list.
+stellar-xdr = { version = "27.0.0", features = ["base64", "std"] }
 # JSON Schema validation, so the runner rejects a profile the same way the
 # specification's own tooling does instead of re-deriving the rules.
 jsonschema = "0.56.0"

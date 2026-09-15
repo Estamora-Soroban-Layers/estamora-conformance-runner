@@ -24,6 +24,7 @@
 //! handled and why neither branch is guessed at.
 
 pub mod auth;
+pub mod client;
 pub mod errors;
 pub mod events;
 pub mod host;
@@ -32,6 +33,7 @@ pub mod invoker;
 pub mod world;
 
 pub use auth::{AuthorizationMode, AuthorizationRecord, apply_authorizations};
+pub use client::{Network, RPC_URL_VARIABLE, ResolvedContract, resolve};
 pub use events::CapturedEvent;
 pub use host::{DEFAULT_LEDGER_SEQUENCE, DEFAULT_LEDGER_TIMESTAMP, LedgerPoint, LocalHost};
 pub use inspect::{
