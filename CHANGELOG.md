@@ -41,33 +41,68 @@ incorrect verdict is fixed rather than preserved.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.1] - 2026-09-15
+
+This release makes the tool installable. No verdict changes: the rule in `estamora-core`
+that reduces results to a verdict, every dimension's evaluation, and the report format are
+untouched, so a contract measured against the same profile reaches the same result under
+`0.1.0` and `0.1.1`.
+
 ### Added
 
-* **A deployed contract is measured from its own instance ledger entry** rather than
-  redeployed. Resolving a contract already reads that entry, and it carries the instance
-  storage the constructor wrote, so the code and the entry are placed in a ledger built
-  from the network's answer and the host is built from it. Nothing runs the constructor,
-  and the contract is reachable at the identifier the network serves it at. A contract
-  whose constructor takes arguments is consequently measurable.
-* **`LocalHost::holding`**, which assembles a host around an artifact and the instance
-  entry that names it, refusing a pair that does not agree.
-* **A contract that is compiled to WebAssembly**, so the `.wasm` target can be measured
-  by the test suite. `fixtures/contracts/measurable-token` declares its own workspace —
-  the runner's enables the SDK's `testutils` for every member, and that does not compile
-  for WebAssembly — and `scripts/build-fixture-wasm.sh` produces the artifact committed
-  under `fixtures/wasm/`. CI rebuilds it and fails if the committed copy differs.
+* **A prebuilt binary for every supported platform**, attached to each release together
+  with a `SHA256SUMS` file. `estamora` previously had no install path at all — no crate on
+  crates.io, no package on npm, and a release that carried no files — so the only way to
+  obtain the tool was to clone this repository and compile a Soroban host, a TLS stack and
+  their entire transitive tree. Each archive carries its own README, its licence and a
+  `VERSION` file written by running `--version`.
+* **`scripts/install-binary.sh`**, which fetches the archive for the detected platform and
+  verifies it against the release's published checksums before installing anything. A
+  release with no checksum file, a checksum file with no entry for the archive, and a
+  mismatch against the published digest all stop the install rather than continuing with a
+  warning. The one place in this project where a network answer decides what gets executed
+  is not going to be the one place that trusts it.
+* **`scripts/test-install-binary.sh`**, which builds a release in a temporary directory,
+  serves it over `file://` and asserts four refusals and two working installs, including
+  the documented quickstart. Each refusal case also asserts that nothing was written, since
+  an installer that fails and leaves a file behind has not failed.
+* **An `installer` job in CI**, which runs that test and lints every shell script in
+  `scripts/` with the runner's preinstalled `shellcheck`.
+* **An installation section in the README**, in three routes, each stated in terms of what
+  it says about which revision is running.
+* **A code of conduct**, with a section specific to a tool whose output is a verdict about
+  somebody else's contract.
+* **`readme` metadata on all eight published crates**, and `scripts/check-crate-metadata.py`,
+  which reads what Cargo resolves rather than what the manifests say.
 
 ### Changed
 
-* **`target::deploy` returns the host along with the deployment.** A remote target is not
-  deployed *into* a host, it *is* the host, so the caller has to measure in the ledger the
-  contract was placed in.
+* **The Action can be referenced.** `action.yml` existed and was well built, but no
+  major-version tag did, so `uses: …/estamora-conformance-runner@v1` resolved to nothing at
+  all. `v1` now exists, and `docs/ci-integration.md` documents it in place of the
+  clone-and-build integration it described while there was no alternative.
+* **The release workflow triggers on three version components**, so a `v1` action tag no
+  longer starts a release that fails its own tag-versus-manifest check.
 
-### Removed
+### Fixed
 
-* **`reason: constructor-needs-arguments` no longer applies to a deployed contract.** It
-  remains the outcome for a `.wasm` file whose constructor declares arguments, which is
-  the path that has no instance entry to place in the ledger.
+* **The installer works when piped to `sh`.** It ran under `set -o pipefail`, which is not
+  in POSIX, and on Debian, Ubuntu and the hosted runners `/bin/sh` is dash: the documented
+  `curl -fsSL <url> | sh` stopped on its first line, installed nothing, and reported the
+  error only on stderr inside a pipeline where the exit code is the last command's. The
+  script is now POSIX `sh` under a `#!/bin/sh` shebang, and the quickstart is a case in the
+  installer test rather than a promise in a README.
+* **The missing-specification-checkout error names the clone command.** A binary installed
+  from a release archive is the sibling of nothing, so the default checkout path can never
+  be satisfied by having installed the tool — which is exactly when that message is
+  reached, and it previously said only that a directory was missing.
+* **The `[Unreleased]` section described work that had already shipped.** The instance-entry
+  measurement, `LocalHost::holding`, the compiled fixture contract and the `target::deploy`
+  change were all contained in `v0.1.0`; their entries belong under `0.1.0` and have been
+  moved there. A changelog that reports released work as pending is worse than one that
+  omits it, because a reader checking what a version contains is told the wrong thing.
 
 ## [0.1.0]
 
@@ -112,6 +147,31 @@ incorrect verdict is fixed rather than preserved.
   `docs/cli.md`, `docs/profile-format.md`, `docs/local-testing.md`,
   `docs/testnet-testing.md`, `docs/ci-integration.md`, `docs/certification.md`,
   `docs/security.md` and `docs/troubleshooting.md`.
+* **A deployed contract is measured from its own instance ledger entry** rather than
+  redeployed. Resolving a contract already reads that entry, and it carries the instance
+  storage the constructor wrote, so the code and the entry are placed in a ledger built
+  from the network's answer and the host is built from it. Nothing runs the constructor,
+  and the contract is reachable at the identifier the network serves it at. A contract
+  whose constructor takes arguments is consequently measurable.
+* **`LocalHost::holding`**, which assembles a host around an artifact and the instance
+  entry that names it, refusing a pair that does not agree.
+* **A contract that is compiled to WebAssembly**, so the `.wasm` target can be measured
+  by the test suite. `fixtures/contracts/measurable-token` declares its own workspace —
+  the runner's enables the SDK's `testutils` for every member, and that does not compile
+  for WebAssembly — and `scripts/build-fixture-wasm.sh` produces the artifact committed
+  under `fixtures/wasm/`. CI rebuilds it and fails if the committed copy differs.
+
+### Changed
+
+* **`target::deploy` returns the host along with the deployment.** A remote target is not
+  deployed *into* a host, it *is* the host, so the caller has to measure in the ledger the
+  contract was placed in.
+
+### Removed
+
+* **`reason: constructor-needs-arguments` no longer applies to a deployed contract.** It
+  remains the outcome for a `.wasm` file whose constructor declares arguments, which is
+  the path that has no instance entry to place in the ledger.
 
 ### Known limitations
 
@@ -132,5 +192,6 @@ incorrect verdict is fixed rather than preserved.
 * **Nothing proves security.** Conformance is behavioural compatibility with a named
   profile over a named corpus, and nothing more.
 
-[Unreleased]: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/releases/tag/v0.1.0

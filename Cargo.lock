@@ -1114,7 +1114,7 @@ checksum = "2bfcf67fea2815c2fc3b90873fae90957be12ff417335dfadc7f52927feb03b2"
 
 [[package]]
 name = "estamora-assertions"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "estamora-core",
  "estamora-profile",
@@ -1124,7 +1124,7 @@ dependencies = [
 
 [[package]]
 name = "estamora-benches"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "criterion",
  "estamora-certification",
@@ -1138,7 +1138,7 @@ dependencies = [
 
 [[package]]
 name = "estamora-certification"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",
@@ -1153,7 +1153,7 @@ dependencies = [
 
 [[package]]
 name = "estamora-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "clap",
  "estamora-assertions",
@@ -1176,7 +1176,7 @@ dependencies = [
 
 [[package]]
 name = "estamora-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -1185,14 +1185,14 @@ dependencies = [
 
 [[package]]
 name = "estamora-fixture-token"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "soroban-sdk",
 ]
 
 [[package]]
 name = "estamora-integration-tests"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "estamora-cli",
  "estamora-core",
@@ -1206,7 +1206,7 @@ dependencies = [
 
 [[package]]
 name = "estamora-profile"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "estamora-core",
  "serde",
@@ -1216,7 +1216,7 @@ dependencies = [
 
 [[package]]
 name = "estamora-report"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "estamora-assertions",
  "estamora-core",
@@ -1232,7 +1232,7 @@ dependencies = [
 
 [[package]]
 name = "estamora-soroban"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "estamora-core",
@@ -1250,7 +1250,7 @@ dependencies = [
 
 [[package]]
 name = "estamora-vectors"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "estamora-core",
  "estamora-profile",
