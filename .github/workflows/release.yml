@@ -5,9 +5,10 @@ name: Release
 # runner version, and a published crate whose manifest disagrees with its tag would make
 # every receipt issued from it uninterpretable.
 #
-# Publishing itself needs a token, and the job for it is written but disabled: a
-# `cargo publish` that nobody has authorised should be a deliberate edit, not a workflow
-# that fires the first time somebody pushes a tag. See the comment on the final job.
+# The tag produces a GitHub release with a binary for every supported platform, and
+# those binaries are verified before they are attached. `cargo publish` is the one step
+# this workflow does not take: a crates.io version cannot be withdrawn, so it stays a
+# human command against a token. See the comment at the foot of this file.
 
 on:
   push:
@@ -98,27 +99,127 @@ jobs:
           path: target/package/*.crate
           if-no-files-found: error
 
+  # A binary is the difference between a tool somebody can run and a source tree they
+  # have to build first, and building this one means compiling a Soroban host, a TLS
+  # stack and their transitive tree. Before this job existed the only way to obtain
+  # `estamora` was to check out the repository `install.sh` was standing in, which is
+  # not an install path for a reviewer, a CI pipeline or anybody else without a clone.
+  #
+  # Every target is built on a runner of its own architecture rather than
+  # cross-compiled, because a cross-compiled artefact is a different claim: nothing
+  # executes it before it is published, and one of these dependencies builds native
+  # code.
+  binaries:
+    name: ${{ matrix.target }}
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            experimental: false
+          # arm64 Linux is the newest of these runner labels. A label that moved would
+          # otherwise fail a release that has nothing wrong with it, so it is allowed to
+          # come up empty rather than to block the three that will not.
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            experimental: true
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            experimental: false
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            experimental: false
+    continue-on-error: ${{ matrix.experimental }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      # `--locked` for the same reason the crate is packaged with it: the binary that
+      # gets published is the one the committed dependency tree describes.
+      - name: Build the release binary
+        shell: bash
+        run: cargo build --locked --release --target ${{ matrix.target }} -p estamora-cli
+
+      # One archive format for every platform. Windows ships `bsdtar` and Windows 10
+      # onward extracts a `.tar.gz` without anything installed, so a second format
+      # would be a second thing to keep right for no gain.
+      - name: Package it with the licence and the version it reports
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="estamora-${{ matrix.target }}"
+          mkdir -p "dist/$name"
+          if [ -f "target/${{ matrix.target }}/release/estamora.exe" ]; then
+            cp "target/${{ matrix.target }}/release/estamora.exe" "dist/$name/"
+          else
+            cp "target/${{ matrix.target }}/release/estamora" "dist/$name/"
+          fi
+          cp LICENSE README.md "dist/$name/"
+          # The archive carries the version it reports, so that an installer and the
+          # tool cannot disagree about what was installed.
+          ./dist/$name/estamora --version >> "dist/$name/VERSION" \
+            || ./dist/$name/estamora.exe --version >> "dist/$name/VERSION"
+          tar -C dist -czf "$name.tar.gz" "$name"
+
+      - name: Upload the archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: estamora-${{ matrix.target }}
+          path: estamora-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
+
   # Creating a release needs write access and verifying a tag does not, so the two are
   # separate jobs. Everything above runs with `contents: read`, which is what makes the
   # verification worth having: a job that could write could also, by mistake, publish
   # something the checks had not passed.
-  draft:
-    name: draft the release
-    needs: verify
+  release:
+    name: publish the release
+    needs: [verify, binaries]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
 
-      # A draft, deliberately. The tag and the changelog entry are the record of what the
-      # version means, and publishing that record is a person's decision rather than a
-      # consequence of pushing a ref.
+      - name: Collect the archives
+        uses: actions/download-artifact@v6
+        with:
+          pattern: estamora-*
+          path: dist
+          merge-multiple: true
+
+      # A checksum is what makes the archive installable rather than merely
+      # downloadable: `install-binary.sh` refuses a download it cannot verify, and it
+      # can only do that because this file is published beside the archives.
+      - name: Write the checksums
+        working-directory: dist
+        shell: bash
+        run: |
+          set -euo pipefail
+          shasum -a 256 -b *.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+
+      # Published rather than drafted. A GitHub release is not the immutable artefact
+      # here — crates.io is, and `cargo publish` stays a human command for exactly that
+      # reason. Pushing an annotated tag is already a deliberate act, the tree it points
+      # at has just passed the full suite, and a release that nobody can install from
+      # until somebody remembers to press a button is the failure this job exists to
+      # remove.
       - name: Create the release
         uses: softprops/action-gh-release@v3
         with:
-          draft: true
           generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
 
   # `cargo publish` is deliberately not automated.
   #
