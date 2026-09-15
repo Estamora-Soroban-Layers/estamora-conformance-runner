@@ -46,7 +46,7 @@ jobs:
         # for which input each one covers and why they are in their own workspace.
         target: [profile-fuzzer, vector-fuzzer, assertion-fuzzer, report-fuzzer]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # `cargo-fuzz` builds with the sanitizer that `-Z sanitizer=address` requires, and
       # libFuzzer with coverage instrumentation, both of which need nightly. The pinned

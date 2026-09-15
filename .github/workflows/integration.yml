@@ -40,10 +40,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check out the specification repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Estamora-Soroban-Layers/estamora-conformance-spec
           path: estamora-conformance-spec
@@ -80,10 +80,10 @@ jobs:
     name: verdicts on defective contracts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check out the specification repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Estamora-Soroban-Layers/estamora-conformance-spec
           path: estamora-conformance-spec
@@ -149,7 +149,7 @@ jobs:
     name: the fixture set
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cache
         uses: Swatinem/rust-cache@v2
