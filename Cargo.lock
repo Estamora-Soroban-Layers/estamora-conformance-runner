@@ -1167,6 +1167,7 @@ dependencies = [
  "serde",
  "serde_json",
  "soroban-sdk",
+ "stellar-xdr",
  "tempfile",
  "time",
  "tracing",

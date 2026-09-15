@@ -6,8 +6,15 @@
 //! module is what turns a declared fixture into a host that honours it.
 
 use estamora_core::{Error, ErrorClass, Result};
+use sha2::{Digest as _, Sha256};
 use soroban_sdk::testutils::{Ledger as _, Register};
 use soroban_sdk::{Address, Env};
+use stellar_xdr::{
+    BytesM, ContractCodeEntry, ContractCodeEntryExt, ContractDataDurability, ContractDataEntry,
+    ContractExecutable, ContractId, ExtensionPoint, Hash, LedgerEntry, LedgerEntryData,
+    LedgerEntryExt, LedgerKey, LedgerKeyContractCode, LedgerKeyContractData, ScAddress,
+    ScContractInstance, ScVal,
+};
 
 use crate::inspect;
 
@@ -57,6 +64,9 @@ impl LedgerPoint {
 pub struct LocalHost {
     env: Env,
     point: LedgerPoint,
+    /// The contract the host was built holding, when it was built from a compiled
+    /// artifact rather than by registering one.
+    held: Option<Address>,
 }
 
 impl core::fmt::Debug for LocalHost {
@@ -87,7 +97,11 @@ impl LocalHost {
         let env = Env::default();
         env.ledger().set_sequence_number(point.sequence);
         env.ledger().set_timestamp(point.timestamp);
-        Self { env, point }
+        Self {
+            env,
+            point,
+            held: None,
+        }
     }
 
     /// Builds a host at the default ledger point.
@@ -108,6 +122,145 @@ impl LocalHost {
         self.point
     }
 
+    /// Builds a host in which `wasm` already exists as a contract.
+    ///
+    /// # Why a compiled artifact is not registered
+    ///
+    /// Registering an artifact runs its `__constructor`, and the environment has no
+    /// arguments to give it. A deployed contract's constructor took the arguments only its
+    /// deployer knew, so registration fails for exactly the contracts this runner exists to
+    /// measure, and the SDK turns that host error into a panic.
+    ///
+    /// So the code and the instance are placed in the ledger and the host is built from
+    /// that ledger instead. Nothing runs the constructor, and the contract exists as the
+    /// network has it: `instance` is the deployed instance entry when the artifact came
+    /// from a network, so its instance storage — the admin, the decimals, the symbol — is
+    /// the contract's own configuration rather than something invented here. A local
+    /// artifact has no such entry, and gets an empty one: it is then in its
+    /// pre-constructor state, which is a fact about the run rather than a defect, and the
+    /// vectors that need more are reported as not exercised.
+    ///
+    /// # Errors
+    ///
+    /// Returns a contract resolution error when the artifact does not hash to the code
+    /// hash the instance entry declares, or when its bytes cannot be encoded as a ledger
+    /// entry. Both mean the ledger would be inconsistent with itself, and a run measured
+    /// against an inconsistent ledger says nothing about any contract.
+    pub fn holding(
+        point: LedgerPoint,
+        wasm: &[u8],
+        instance: Option<&LedgerEntry>,
+        describe: &str,
+    ) -> Result<Self> {
+        let code_hash = Hash(Sha256::digest(wasm).into());
+
+        // The two ledger entries must agree, or the host would load code under a hash the
+        // instance does not name and report a missing contract for a healthy artifact.
+        if let Some(declared) = instance.and_then(crate::client::executable_hash)
+            && declared != code_hash
+        {
+            return Err(Error::new(
+                ErrorClass::ContractResolutionError,
+                format!(
+                    "{describe} declares the code hash {} but the artifact hashes to 
+                     {}. The ledger would be inconsistent with itself, so nothing was 
+                     measured",
+                    hex::encode(declared.0),
+                    hex::encode(code_hash.0)
+                ),
+            )
+            .with_context("reason", "artifact-hash-mismatch"));
+        }
+
+        let contract_id = instance
+            .and_then(instance_contract)
+            .unwrap_or_else(|| ContractId(code_hash.clone()));
+        let address = ScAddress::Contract(contract_id.clone());
+
+        let instance_entry = match instance {
+            Some(entry) => entry.clone(),
+            None => LedgerEntry {
+                last_modified_ledger_seq: point.sequence,
+                data: LedgerEntryData::ContractData(ContractDataEntry {
+                    ext: ExtensionPoint::V0,
+                    contract: address.clone(),
+                    key: ScVal::LedgerKeyContractInstance,
+                    durability: ContractDataDurability::Persistent,
+                    val: ScVal::ContractInstance(ScContractInstance {
+                        executable: ContractExecutable::Wasm(code_hash.clone()),
+                        storage: None,
+                    }),
+                }),
+                ext: LedgerEntryExt::V0,
+            },
+        };
+
+        let code_entry = LedgerEntry {
+            last_modified_ledger_seq: point.sequence,
+            data: LedgerEntryData::ContractCode(ContractCodeEntry {
+                ext: ContractCodeEntryExt::V0,
+                hash: code_hash.clone(),
+                code: BytesM::try_from(wasm.to_vec()).map_err(|problem| {
+                    Error::new(
+                        ErrorClass::ContractResolutionError,
+                        format!("{describe} cannot be stored as a ledger entry: {problem}"),
+                    )
+                })?,
+            }),
+            ext: LedgerEntryExt::V0,
+        };
+
+        // The ledger the contract is measured at comes from a default host rather than
+        // from constants written here, so the protocol version and the TTL bounds are the
+        // ones the execution environment itself is built against. Guessing them would mean
+        // a contract rejected for a protocol feature it does support, or an entry declared
+        // expired the moment it was written.
+        let mut snapshot = Env::default().to_ledger_snapshot();
+        let sequence = point.sequence;
+        snapshot.sequence_number = sequence;
+        snapshot.timestamp = point.timestamp;
+        let live_until = sequence.saturating_add(snapshot.max_entry_ttl);
+        snapshot.ledger_entries = vec![
+            (
+                Box::new(LedgerKey::ContractCode(LedgerKeyContractCode {
+                    hash: code_hash.clone(),
+                })),
+                (Box::new(code_entry), Some(live_until)),
+            ),
+            (
+                Box::new(LedgerKey::ContractData(LedgerKeyContractData {
+                    contract: address.clone(),
+                    key: ScVal::LedgerKeyContractInstance,
+                    durability: ContractDataDurability::Persistent,
+                })),
+                (Box::new(instance_entry), Some(live_until)),
+            ),
+        ];
+
+        let env = Env::from_ledger_snapshot(snapshot);
+        // The snapshot carries the ledger point, and setting it again keeps a contract
+        // that reads `ledger()` from seeing a different answer than the snapshot's.
+        env.ledger().set_sequence_number(sequence);
+        env.ledger().set_timestamp(point.timestamp);
+
+        // The handle the rest of the runner passes to `invoke_contract`, named from the
+        // address the entries were stored under so that a contract with its own contract
+        // id is reached at that id rather than at a generated one.
+        let held = Address::from_str(&env, &stellar_strkey::Contract(contract_id.0.0).to_string());
+
+        Ok(Self {
+            env,
+            point,
+            held: Some(held),
+        })
+    }
+
+    /// The contract this host was built holding, when it was built from an artifact.
+    #[must_use]
+    pub fn held(&self) -> Option<&Address> {
+        self.held.as_ref()
+    }
+
     /// Registers a contract and returns its address.
     ///
     /// The parameter is generic over the SDK's `Register` trait, which is
@@ -121,6 +274,10 @@ impl LocalHost {
 
     /// Registers a compiled artifact, reporting a constructor that cannot be run.
     ///
+    /// This is the path a `.wasm` file on disk takes. A contract read from a network does
+    /// not take it: its instance entry is available, so [`Self::holding`] places it in the
+    /// ledger instead and its constructor is never run.
+    ///
     /// # Why this is not `register`
     ///
     /// Registering an artifact runs its `__constructor`, and the environment supplies no
@@ -129,10 +286,11 @@ impl LocalHost {
     /// middle of a run is a defect whatever the cause: it is not a verdict, it carries no
     /// class for CI to act on, and it cannot be told apart from a bug in this runner.
     ///
-    /// [`constructor_needing_arguments`] is checked first, because that is the case a
-    /// deployed contract actually hits and the one worth naming precisely. This catches the
-    /// rest — a constructor that fails for some other reason, such as one that requires
-    /// authorization nobody can grant on a fresh instance.
+    /// [`constructor_needing_arguments`] is checked first, because a constructor that
+    /// declares arguments is the common case and the one worth naming precisely, including
+    /// what it wanted. This catches the rest — a constructor that fails for some other
+    /// reason, such as one that requires authorization nobody can grant on a fresh
+    /// instance.
     ///
     /// # Errors
     ///
@@ -177,6 +335,17 @@ impl LocalHost {
     }
 }
 
+/// The contract an instance entry belongs to, when it addresses one.
+fn instance_contract(entry: &LedgerEntry) -> Option<ContractId> {
+    let LedgerEntryData::ContractData(data) = &entry.data else {
+        return None;
+    };
+    let ScAddress::Contract(id) = &data.contract else {
+        return None;
+    };
+    Some(id.clone())
+}
+
 /// The name the SDK gives a contract's constructor in its spec section.
 pub const CONSTRUCTOR: &str = "__constructor";
 
@@ -214,9 +383,38 @@ pub fn constructor_needing_arguments(interface: &inspect::ExposedInterface) -> O
     reason = "tests may panic; a failing test is the signal"
 )]
 mod tests {
-    use super::{LocalHost, constructor_needing_arguments};
+    use super::{LedgerPoint, LocalHost, constructor_needing_arguments};
     use crate::inspect::{ExposedInterface, ExposedMethod, ExposedParameter};
     use estamora_core::ErrorClass;
+    use sha2::{Digest as _, Sha256};
+    use soroban_sdk::Address;
+    use stellar_xdr::{
+        ContractDataDurability, ContractDataEntry, ContractExecutable, ContractId, ExtensionPoint,
+        Hash, LedgerEntry, LedgerEntryData, LedgerEntryExt, ScAddress, ScContractInstance, ScVal,
+    };
+
+    /// The code hash an artifact hashes to, as the ledger records it.
+    fn code_hash(wasm: &[u8]) -> Hash {
+        Hash(Sha256::digest(wasm).into())
+    }
+
+    /// A contract instance entry naming `hash`, as a node reports one.
+    fn instance(contract: Hash, executable: Hash) -> LedgerEntry {
+        LedgerEntry {
+            last_modified_ledger_seq: 1,
+            data: LedgerEntryData::ContractData(ContractDataEntry {
+                ext: ExtensionPoint::V0,
+                contract: ScAddress::Contract(ContractId(contract)),
+                key: ScVal::LedgerKeyContractInstance,
+                durability: ContractDataDurability::Persistent,
+                val: ScVal::ContractInstance(ScContractInstance {
+                    executable: ContractExecutable::Wasm(executable),
+                    storage: None,
+                }),
+            }),
+            ext: LedgerEntryExt::V0,
+        }
+    }
 
     fn interface(methods: Vec<ExposedMethod>) -> ExposedInterface {
         ExposedInterface {
@@ -292,5 +490,85 @@ mod tests {
             .expect_err("bytes that are not WebAssembly cannot be instantiated");
         assert_eq!(problem.class(), ErrorClass::ContractResolutionError);
         assert_eq!(problem.blame(), estamora_core::Blame::Environment);
+    }
+
+    #[test]
+    fn a_contract_read_from_a_network_is_held_at_the_id_it_is_deployed_at() {
+        // The property the whole remote path rests on: the contract is placed in the
+        // ledger, under the identifier the network serves it at, without anything running
+        // its constructor. If the host reported a generated address instead, every call
+        // in the corpus would be made against a contract that does not exist — and the
+        // diagnostics for that look exactly like a contract with no methods.
+        let wasm = b"bytes standing in for a deployed artifact";
+        let deployed_at = Hash([7; 32]);
+        let host = LocalHost::holding(
+            LedgerPoint::default(),
+            wasm,
+            Some(&instance(deployed_at.clone(), code_hash(wasm))),
+            "a test contract",
+        )
+        .expect("a well-formed instance entry is enough to hold a contract");
+
+        let as_the_network_names_it = Address::from_str(
+            host.env(),
+            &stellar_strkey::Contract(deployed_at.0).to_string(),
+        );
+        assert_eq!(
+            host.held().cloned(),
+            Some(as_the_network_names_it),
+            "the contract must be reachable at the id the network reports, not a generated one"
+        );
+    }
+
+    #[test]
+    fn a_local_artifact_with_no_instance_entry_is_held_at_its_own_code_hash() {
+        // A `.wasm` file carries no instance entry, so the address is derived from the
+        // artifact. Deriving it rather than generating one keeps a run reproducible: two
+        // runs of the same file hold the same contract at the same address.
+        let wasm = b"bytes standing in for a local artifact";
+        let first = LocalHost::holding(LedgerPoint::default(), wasm, None, "a test artifact")
+            .expect("an artifact with no instance entry is held from its own bytes");
+        let second = LocalHost::holding(LedgerPoint::default(), wasm, None, "a test artifact")
+            .expect("an artifact with no instance entry is held from its own bytes");
+
+        assert!(first.held().is_some());
+        assert_eq!(first.held(), second.held());
+    }
+
+    #[test]
+    fn an_instance_entry_that_names_a_different_artifact_is_refused() {
+        // The instance and the code must agree. If they did not, the host would load code
+        // under a hash the instance does not name, and a healthy artifact would be
+        // reported as a missing contract — an environment fault blamed on the contract.
+        let wasm = b"the artifact that was fetched";
+        let problem = LocalHost::holding(
+            LedgerPoint::default(),
+            wasm,
+            Some(&instance(Hash([7; 32]), Hash([9; 32]))),
+            "a test contract",
+        )
+        .expect_err("an inconsistent ledger must be refused");
+
+        assert_eq!(problem.class(), ErrorClass::ContractResolutionError);
+        assert_eq!(problem.blame(), estamora_core::Blame::Environment);
+        assert_eq!(
+            problem.context_value("reason"),
+            Some("artifact-hash-mismatch")
+        );
+    }
+
+    #[test]
+    fn a_held_contract_keeps_the_ledger_point_it_was_built_at() {
+        // Vectors declare the ledger they run at, and a contract that reads the ledger
+        // must see the vector's values rather than the host's defaults. Building the host
+        // from a snapshot is the one path where that could silently be lost.
+        let point = LedgerPoint::new(42_000, 1_700_000_000);
+        let wasm = b"bytes standing in for an artifact";
+        let host = LocalHost::holding(point, wasm, None, "a test artifact")
+            .expect("an artifact is held at the point it is built at");
+
+        assert_eq!(host.point(), point);
+        assert_eq!(host.env().ledger().sequence(), point.sequence);
+        assert_eq!(host.env().ledger().timestamp(), point.timestamp);
     }
 }

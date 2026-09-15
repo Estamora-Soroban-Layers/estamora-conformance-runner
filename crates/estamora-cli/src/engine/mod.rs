@@ -50,7 +50,7 @@ use estamora_report::model::{
     CorpusIdentity, ProfileIdentity, REPORT_SCHEMA, Report, Summary, Target as ReportTarget,
     report_vector, tally,
 };
-use estamora_soroban::{ExposedInterface, LocalHost};
+use estamora_soroban::{ExposedInterface, LedgerPoint};
 use estamora_vectors::{Vector, VectorCorpus};
 
 use crate::config::{RunConfig, runner_identity};
@@ -154,9 +154,9 @@ pub fn validate(config: &RunConfig) -> Result<Validated> {
 /// exposes every declared method is still not evidence of behavioural conformance, and
 /// [`inspect`] therefore never claims otherwise.
 pub fn inspect(config: &RunConfig) -> Result<Inspection> {
-    let host = LocalHost::at_default_point();
     let artifact = config.target.fetch()?;
-    let deployment = target::deploy(&config.target, &host, artifact.as_ref())?;
+    let (_, deployment) =
+        target::deploy(&config.target, LedgerPoint::default(), artifact.as_ref())?;
     Ok(Inspection {
         target: config.target.describe(),
         network: deployment.network,

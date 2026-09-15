@@ -137,6 +137,14 @@ pub struct ResolvedContract {
     pub wasm_hash: String,
     /// The deployed WebAssembly, verified to hash to [`Self::wasm_hash`].
     pub wasm: Vec<u8>,
+    /// The contract's own instance ledger entry, exactly as the network stores it.
+    ///
+    /// Kept because it carries the contract's **instance storage** — the admin address,
+    /// the decimals, the symbol: whatever a constructor wrote. Loading it into a local
+    /// host is what lets a deployed contract be measured rather than redeployed, and it
+    /// is why a constructor taking arguments is not the end of the road for the
+    /// contracts that have one.
+    pub instance: LedgerEntry,
 }
 
 /// Resolves a deployed contract to the artifact it is running.
@@ -258,6 +266,7 @@ fn resolve_on(
         protocol_version,
         wasm_hash: hex::encode(declared_hash.0),
         wasm,
+        instance,
     })
 }
 
@@ -353,7 +362,7 @@ fn assemble_entry(entry: &Value) -> Result<LedgerEntry> {
 }
 
 /// The hash a contract instance says it is running.
-fn executable_hash(entry: &LedgerEntry) -> Option<Hash> {
+pub(crate) fn executable_hash(entry: &LedgerEntry) -> Option<Hash> {
     // Anything that is not a contract-data entry carrying a contract instance is not
     // what this key addresses, so it is treated as absent rather than guessed at.
     let LedgerEntryData::ContractData(data) = &entry.data else {

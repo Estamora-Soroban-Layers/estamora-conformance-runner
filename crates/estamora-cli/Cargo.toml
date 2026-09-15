@@ -45,6 +45,11 @@ estamora-vectors = { workspace = true }
 # workspace assumes.
 estamora-fixture-token = { workspace = true }
 soroban-sdk = { workspace = true }
+# A contract read from a network is carried with its instance ledger entry, because that
+# entry — not a re-run constructor — is what puts the contract into the local ledger in
+# the state the network has it in. The type is `stellar-xdr`'s; the same crate already
+# decodes the resolution answers one crate down.
+stellar-xdr = { workspace = true }
 clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

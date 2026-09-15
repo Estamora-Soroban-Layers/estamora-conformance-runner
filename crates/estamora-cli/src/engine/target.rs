@@ -42,8 +42,9 @@ use std::path::{Path, PathBuf};
 
 use estamora_core::{Error, ErrorClass, Result};
 use estamora_fixture_token::Defect;
-use estamora_soroban::{DeclaredMethod, ExposedInterface, LocalHost};
+use estamora_soroban::{DeclaredMethod, ExposedInterface, LedgerPoint, LocalHost};
 use soroban_sdk::Address;
+use stellar_xdr::LedgerEntry;
 
 /// The largest artifact the runner will read into memory.
 ///
@@ -98,6 +99,14 @@ pub struct RemoteArtifact {
     pub wasm_hash: String,
     /// The deployed WebAssembly.
     pub wasm: Vec<u8>,
+    /// The contract's own instance ledger entry, exactly as the network stores it.
+    ///
+    /// This is what makes a deployed contract measurable. Its `__constructor` took
+    /// arguments only its deployer knew, so the contract cannot be re-deployed locally
+    /// — but it does not need to be: the instance entry carries the instance storage the
+    /// constructor wrote, so the contract can be placed in the local ledger in exactly
+    /// the state the network has it in and measured from there.
+    pub instance: LedgerEntry,
 }
 
 impl Target {
@@ -220,6 +229,7 @@ impl Target {
             protocol_version: resolved.protocol_version,
             wasm_hash: resolved.wasm_hash,
             wasm: resolved.wasm,
+            instance: resolved.instance,
         }))
     }
 
@@ -333,27 +343,37 @@ impl Seeding {
     }
 }
 
-/// Deploys `target` into `host` and reads its interface.
+/// Deploys `target` at `point` and reads its interface.
 ///
 /// `artifact` is what [`Target::fetch`] returned for this target, and is required for a
 /// remote target: the fetch is deliberately not repeated here, because this function is
 /// called once per vector and a run must measure one artifact rather than whichever one
 /// the network was serving at each moment.
 ///
+/// # Why this builds the host rather than being given one
+///
+/// A local target is deployed *into* a host, but a remote one *is* the host: the contract
+/// is placed in a ledger built from its deployed instance entry, and that ledger is what
+/// the call is made against. So the two cannot share one caller-supplied host, and the
+/// host comes back out with the deployment for the caller to measure in. Nothing is
+/// registered in the remote case, which is what makes a contract whose constructor takes
+/// arguments measurable instead of merely refused.
+///
 /// # Errors
 ///
 /// Returns a contract resolution error when an artifact cannot be read, is larger than
-/// [`MAX_ARTIFACT_BYTES`], or publishes no contract spec section; an internal error when
-/// a remote target is deployed without the artifact its fetch should have produced.
-/// Every one of those is an environment failure rather than anything about the
-/// contract's behaviour.
+/// [`MAX_ARTIFACT_BYTES`], publishes no contract spec section, or cannot be placed in the
+/// ledger with the instance entry the network reports; an internal error when a remote
+/// target is deployed without the artifact its fetch should have produced. Every one of
+/// those is an environment failure rather than anything about the contract's behaviour.
 pub fn deploy(
     target: &Target,
-    host: &LocalHost,
+    point: LedgerPoint,
     artifact: Option<&RemoteArtifact>,
-) -> Result<Deployment> {
+) -> Result<(LocalHost, Deployment)> {
     match target {
         Target::Fixture { defect } => {
+            let host = LocalHost::new(point);
             let declared = estamora_fixture_token::interface::declared(*defect);
             let methods: Vec<DeclaredMethod> = declared
                 .iter()
@@ -364,20 +384,25 @@ pub fn deploy(
                     readonly: method.readonly,
                 })
                 .collect();
-            Ok(Deployment {
-                contract: estamora_fixture_token::deploy(host.env(), *defect),
-                network: LOCAL_NETWORK.to_owned(),
-                // A fixture is registered from a Rust type, so there is no artifact
-                // to hash and no claim to make about one.
-                wasm_hash: None,
-                interface: ExposedInterface::declared(
-                    &methods,
-                    format!("the fixture `{}`", defect.as_str()),
-                ),
-                seeding: Seeding::FixtureEntryPoints,
-            })
+            let contract = estamora_fixture_token::deploy(host.env(), *defect);
+            Ok((
+                host,
+                Deployment {
+                    contract,
+                    network: LOCAL_NETWORK.to_owned(),
+                    // A fixture is registered from a Rust type, so there is no artifact
+                    // to hash and no claim to make about one.
+                    wasm_hash: None,
+                    interface: ExposedInterface::declared(
+                        &methods,
+                        format!("the fixture `{}`", defect.as_str()),
+                    ),
+                    seeding: Seeding::FixtureEntryPoints,
+                },
+            ))
         },
         Target::Wasm { path } => {
+            let host = LocalHost::new(point);
             let metadata = std::fs::metadata(path).map_err(|problem| {
                 Error::new(
                     ErrorClass::ContractResolutionError,
@@ -410,19 +435,23 @@ pub fn deploy(
             let interface = ExposedInterface::from_wasm(&bytes, describe.clone())?;
             let wasm_hash = estamora_certification::Digest::of_bytes(&bytes).to_string();
 
-            Ok(Deployment {
-                contract: host.register_artifact(&bytes, &describe)?,
-                network: LOCAL_NETWORK.to_owned(),
-                wasm_hash: Some(wasm_hash),
-                interface,
-                seeding: Seeding::Unavailable {
-                    reason: "a compiled artifact is not assumed to publish Estamora's fixture \
-                             setup entry points, so a vector whose world declares no opening \
-                             balance or allowance can be prepared and one that declares either \
-                             cannot"
-                        .to_owned(),
+            let contract = host.register_artifact(&bytes, &describe)?;
+            Ok((
+                host,
+                Deployment {
+                    contract,
+                    network: LOCAL_NETWORK.to_owned(),
+                    wasm_hash: Some(wasm_hash),
+                    interface,
+                    seeding: Seeding::Unavailable {
+                        reason: "a compiled artifact is not assumed to publish Estamora's fixture \
+                                 setup entry points, so a vector whose world declares no opening \
+                                 balance or allowance can be prepared and one that declares either \
+                                 cannot"
+                            .to_owned(),
+                    },
                 },
-            })
+            ))
         },
         Target::Remote {
             contract_id,
@@ -466,30 +495,61 @@ pub fn deploy(
                     .with_context("rpc_url", artifact.rpc_url.clone())
             })?;
 
-            Ok(Deployment {
-                contract: host.register_artifact(
-                    &artifact.wasm,
-                    &format!(
-                        "contract {contract_id} on `{}` as read from {}",
-                        artifact.network, artifact.rpc_url
+            let describe = format!(
+                "contract {contract_id} on `{}` as read from {}",
+                artifact.network, artifact.rpc_url
+            );
+
+            // The contract is placed in the ledger as the network has it, from the
+            // instance entry that was read alongside its code, rather than being
+            // registered. Registering would run `__constructor`, which a deployed
+            // contract's deployer already ran with arguments this runner does not have
+            // and must not invent — and the instance entry it wrote is right here, so
+            // there is nothing to reproduce. The contract's own configuration — the
+            // admin, the decimals, the symbol — is therefore the contract's, not a
+            // guess, and the measurement starts from the state the contract is actually
+            // running in.
+            let host =
+                LocalHost::holding(point, &artifact.wasm, Some(&artifact.instance), &describe)
+                    .map_err(|problem| {
+                        problem
+                            .with_context("contract", contract_id.clone())
+                            .with_context("network", artifact.network.clone())
+                            .with_context("rpc_url", artifact.rpc_url.clone())
+                    })?;
+            let Some(contract) = host.held().cloned() else {
+                return Err(Error::new(
+                    ErrorClass::InternalError,
+                    format!(
+                        "{describe} was placed in the ledger but the host reports holding \
+                         nothing, so there is no contract to call"
                     ),
-                )?,
-                network: artifact.network.clone(),
-                wasm_hash: Some(artifact.wasm_hash.clone()),
-                interface,
-                // The opening state a vector declares cannot be established against a
-                // deployed contract: it publishes its own interface, not Estamora's
-                // fixture setup entry points, and writing to somebody else's ledger is
-                // not something a measurement may do.
-                seeding: Seeding::Unavailable {
-                    reason: "a deployed contract publishes its own interface rather than \
-                             Estamora's fixture setup entry points, and a measurement does \
-                             not write to the ledger it reads from, so a vector whose world \
-                             declares no opening balance or allowance can be prepared and \
-                             one that declares either cannot"
-                        .to_owned(),
+                )
+                .with_context("contract", contract_id.clone())
+                .with_context("reason", "host-holds-no-contract"));
+            };
+
+            Ok((
+                host,
+                Deployment {
+                    contract,
+                    network: artifact.network.clone(),
+                    wasm_hash: Some(artifact.wasm_hash.clone()),
+                    interface,
+                    // The opening state a vector declares cannot be established against a
+                    // deployed contract: it publishes its own interface, not Estamora's
+                    // fixture setup entry points, and writing to somebody else's ledger is
+                    // not something a measurement may do.
+                    seeding: Seeding::Unavailable {
+                        reason: "a deployed contract publishes its own interface rather than \
+                                 Estamora's fixture setup entry points, and a measurement does \
+                                 not write to the ledger it reads from, so a vector whose world \
+                                 declares no opening balance or allowance can be prepared and \
+                                 one that declares either cannot"
+                            .to_owned(),
+                    },
                 },
-            })
+            ))
         },
     }
 }
@@ -520,7 +580,11 @@ mod tests {
     use super::{RemoteArtifact, Seeding, Target, looks_like_a_contract_id};
     use estamora_core::ErrorClass;
     use estamora_fixture_token::Defect;
-    use estamora_soroban::LocalHost;
+    use estamora_soroban::LedgerPoint;
+    use stellar_xdr::{
+        ContractDataDurability, ContractDataEntry, ContractExecutable, ContractId, ExtensionPoint,
+        Hash, LedgerEntry, LedgerEntryData, LedgerEntryExt, ScAddress, ScContractInstance, ScVal,
+    };
 
     /// An artifact standing in for one fetched from a network.
     ///
@@ -536,6 +600,31 @@ mod tests {
             protocol_version: 28,
             wasm_hash: "0".repeat(64),
             wasm: wasm.to_vec(),
+            instance: instance_entry(),
+        }
+    }
+
+    /// A contract instance entry, in the shape a node reports one.
+    ///
+    /// Deliberately a real ledger entry rather than a placeholder: the deployment path
+    /// stores it in a ledger, so an entry that could not be stored would say nothing
+    /// about the path that stores it. It is not the entry of any particular contract —
+    /// the tests that use it stop before anything is executed — so it need only be well
+    /// formed.
+    fn instance_entry() -> LedgerEntry {
+        LedgerEntry {
+            last_modified_ledger_seq: 1,
+            data: LedgerEntryData::ContractData(ContractDataEntry {
+                ext: ExtensionPoint::V0,
+                contract: ScAddress::Contract(ContractId(Hash([0; 32]))),
+                key: ScVal::LedgerKeyContractInstance,
+                durability: ContractDataDurability::Persistent,
+                val: ScVal::ContractInstance(ScContractInstance {
+                    executable: ContractExecutable::Wasm(Hash([0; 32])),
+                    storage: None,
+                }),
+            }),
+            ext: LedgerEntryExt::V0,
         }
     }
 
@@ -649,8 +738,7 @@ mod tests {
         // change the artifact part way through its own report.
         let id = format!("C{}", "A".repeat(55));
         let target = Target::parse(&id, Some("testnet")).unwrap();
-        let host = LocalHost::at_default_point();
-        let problem = super::deploy(&target, &host, None).unwrap_err();
+        let problem = super::deploy(&target, LedgerPoint::default(), None).unwrap_err();
         assert_eq!(problem.class(), ErrorClass::InternalError);
         assert_eq!(
             problem.blame(),
@@ -671,10 +759,9 @@ mod tests {
         // only be if the artifact actually reached the interface reader.
         let id = format!("C{}", "A".repeat(55));
         let target = Target::parse(&id, Some("testnet")).unwrap();
-        let host = LocalHost::at_default_point();
         let artifact = fetched(b"not wasm");
 
-        let problem = super::deploy(&target, &host, Some(&artifact)).unwrap_err();
+        let problem = super::deploy(&target, LedgerPoint::default(), Some(&artifact)).unwrap_err();
         assert_eq!(problem.class(), ErrorClass::ContractResolutionError);
         assert_eq!(problem.blame(), estamora_core::Blame::Environment);
         assert_eq!(problem.context_value("contract"), Some(id.as_str()));
@@ -688,12 +775,11 @@ mod tests {
 
     #[test]
     fn a_fixture_deploys_with_the_interface_its_own_declaration_states() {
-        let host = LocalHost::at_default_point();
-        let deployment = super::deploy(
+        let (_, deployment) = super::deploy(
             &Target::Fixture {
                 defect: Defect::MissingDecimals,
             },
-            &host,
+            LedgerPoint::default(),
             None,
         )
         .unwrap();
@@ -714,9 +800,9 @@ mod tests {
 
     #[test]
     fn a_fixture_that_admits_its_defect_is_the_only_one_that_does() {
-        let host = LocalHost::at_default_point();
         for defect in Defect::ALL {
-            let deployment = super::deploy(&Target::Fixture { defect }, &host, None).unwrap();
+            let (_, deployment) =
+                super::deploy(&Target::Fixture { defect }, LedgerPoint::default(), None).unwrap();
             assert_eq!(
                 deployment.interface.declares("decimals"),
                 defect.exposes_decimals(),

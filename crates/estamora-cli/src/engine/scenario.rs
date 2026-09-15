@@ -45,9 +45,7 @@ use estamora_assertions::{OutcomeDiagnostic, VectorOutcome};
 use estamora_core::value::Value;
 use estamora_core::{Error, ErrorClass, Result};
 use estamora_profile::{MethodDefinition, ProfileBundle};
-use estamora_soroban::{
-    AuthorizationMode, ContractWorld, LedgerPoint, LocalHost, apply_authorizations,
-};
+use estamora_soroban::{AuthorizationMode, ContractWorld, LedgerPoint, apply_authorizations};
 use estamora_vectors::{ActorKind, AuthorizationExpectation, VectorDocument};
 use soroban_sdk::testutils::{Address as _, MockAuth, MockAuthInvoke};
 use soroban_sdk::{Address, Env, IntoVal as _, Symbol, Val};
@@ -90,13 +88,13 @@ pub fn execute(
         vector.fixtures.ledger.sequence,
         vector.fixtures.ledger.timestamp_unix()?,
     );
-    let host = LocalHost::new(point);
-    let env = host.env();
-
     // Deployment happens before anything is measured, so a contract that cannot be
     // resolved or inspected stops the run instead of producing verdicts about an
-    // artifact the runner never read.
-    let deployment = target::deploy(target, &host, artifact)?;
+    // artifact the runner never read. It produces the host to measure in, because a
+    // remote contract is placed in a ledger built from its own deployed instance entry
+    // rather than registered into a fresh one.
+    let (host, deployment) = target::deploy(target, point, artifact)?;
+    let env = host.env();
 
     let mut diagnostics: Vec<OutcomeDiagnostic> = Vec::new();
     let mut addresses: BTreeMap<String, Address> = BTreeMap::new();
