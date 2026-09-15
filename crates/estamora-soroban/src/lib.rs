@@ -33,3 +33,8 @@ pub use auth::{AuthorizationMode, AuthorizationRecord, apply_authorizations};
 pub use events::CapturedEvent;
 pub use host::{DEFAULT_LEDGER_SEQUENCE, DEFAULT_LEDGER_TIMESTAMP, LedgerPoint, LocalHost};
 pub use invoker::{CallOutcome, Invocation, invoke};
+
+#[cfg(test)]
+mod fixtures;
+#[cfg(test)]
+mod tests;
