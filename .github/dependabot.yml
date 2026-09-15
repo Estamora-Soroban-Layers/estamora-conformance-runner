@@ -1,0 +1,77 @@
+version: 2
+
+# Dependency updates are grouped and scheduled rather than continuous, because this
+# repository's dependency tree is part of what a conformance result means: a replaced
+# `sha2`, a different `ed25519-dalek` or a newer `soroban-sdk` changes the tool that
+# produced a verdict. An update is a decision, and a decision made sixty times in a
+# week is not made at all.
+
+updates:
+  # The workspace, the fixture contract and the integration harness all resolve from
+  # one lock file at the root, so one entry covers every crate.
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    # The lock file is committed on purpose. An update that re-resolves it is a change
+    # to what a passing run means, so the pull request has to show it.
+    labels: ["dependencies", "rust"]
+    commit-message:
+      prefix: "deps"
+    groups:
+      # A patch bump of something deep in the tree is a build detail; a major bump of a
+      # crypto or XDR crate is not, and neither is the SDK. Grouping the former keeps the
+      # latter visible.
+      patch-and-minor:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      # The Soroban SDK is pinned to the major the specification's contracts target.
+      # A major bump changes the execution environment a verdict was produced in, which
+      # is a decision for a human with a reason, not a weekly pull request.
+      - dependency-name: "soroban-sdk"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "stellar-xdr"
+        update-types: ["version-update:semver-major"]
+      # The crypto crates agree with the SDK's majors by construction; moving one
+      # without the other produces two incompatible copies of the same types.
+      - dependency-name: "ed25519-dalek"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "sha2"
+        update-types: ["version-update:semver-major"]
+
+  # The fuzz targets are their own workspace, with their own lock file.
+  - package-ecosystem: cargo
+    directory: "/fuzz"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "fuzzing"]
+    commit-message:
+      prefix: "deps(fuzz)"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "ci"
+    groups:
+      # An action bump is a bump of something that runs with a token in CI. Reviewing
+      # them together makes the change visible; reviewing them one at a time makes it
+      # invisible by repetition.
+      actions:
+        patterns: ["*"]

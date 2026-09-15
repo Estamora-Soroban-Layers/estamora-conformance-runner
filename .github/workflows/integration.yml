@@ -1,0 +1,191 @@
+name: Integration
+
+# The end-to-end suite, run separately from the unit tests because it is the one that
+# answers the only question that matters: does a run against a contract reach a verdict
+# a reader can act on, and does a wrong contract reach the right one?
+#
+# Every test here drives the library the way a user drives the CLI — it builds a
+# `RunConfig`, calls `run`, and reads the report — so a change that breaks the seam
+# between the CLI and the engine fails here and nowhere else. Nothing in this workflow
+# touches a network: the fixtures are contracts in the workspace, compiled to real Wasm
+# and executed in a real Soroban host with time and authorization fixed by each vector.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # Checked out inside the workspace rather than beside it: `actions/checkout` resolves
+  # `path` against the workspace, and a path outside it is not portable across the
+  # hosted runners. This is also the variable the tests that read the real profile use,
+  # so setting it is what turns their skip into a check.
+  ESTAMORA_SPEC_REPO: ${{ github.workspace }}/estamora-conformance-spec
+
+jobs:
+  end-to-end:
+    name: end to end
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the specification repository
+        uses: actions/checkout@v4
+        with:
+          repository: Estamora-Soroban-Layers/estamora-conformance-spec
+          path: estamora-conformance-spec
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      # One target per dimension, so a failure names the dimension it is about without
+      # a reader having to open the test body.
+      - name: Local execution
+        run: cargo test --locked -p estamora-integration-tests --test local
+
+      - name: Authorization
+        run: cargo test --locked -p estamora-integration-tests --test authorization
+
+      - name: Events
+        run: cargo test --locked -p estamora-integration-tests --test events
+
+      - name: State
+        run: cargo test --locked -p estamora-integration-tests --test state
+
+      - name: Invariants
+        run: cargo test --locked -p estamora-integration-tests --test invariants
+
+      - name: Failure
+        run: cargo test --locked -p estamora-integration-tests --test failures
+
+      # No network is needed for this one, which is the point of it: the classification
+      # properties a network run must never break are asserted without a network.
+      - name: Target resolution and network classification
+        run: cargo test --locked -p estamora-integration-tests --test testnet
+
+  verdicts:
+    name: verdicts on defective contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the specification repository
+        uses: actions/checkout@v4
+        with:
+          repository: Estamora-Soroban-Layers/estamora-conformance-spec
+          path: estamora-conformance-spec
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build the binary
+        run: cargo build --locked -p estamora-cli
+
+      # The headline property of the tool, asserted from outside: a contract that is
+      # wrong on purpose is reported NON_CONFORMANT or PARTIALLY_CONFORMANT, and never
+      # as conformant. A runner that reported a false success would pass every unit
+      # test in the workspace and fail here.
+      - name: Every defective fixture is refused
+        shell: bash
+        run: |
+          set -euo pipefail
+          failed=0
+          for defect in skips-authorization omits-event double-emits \
+                        wrong-event-amount wrong-credit-amount allows-overdraft; do
+            set +e
+            ./target/debug/estamora run --spec fixtures \
+              --profile conformance-token@1.0 \
+              --contract "fixture:$defect" >/dev/null 2>&1
+            code=$?
+            set -e
+            if [ "$code" -eq 0 ]; then
+              echo "fixture:$defect reported a conformant verdict; it must not"
+              failed=1
+            elif [ "$code" -ne 1 ]; then
+              echo "fixture:$defect exited $code; a contract defect must exit 1"
+              failed=1
+            fi
+          done
+          exit "$failed"
+
+      # And the other half of the same property, which is easier to break: a contract
+      # that is wrong in a way *this* profile does not measure is conformant, and that
+      # is the correct result. A runner that reported a failure here would be
+      # inventing a requirement.
+      - name: A contract with an unmeasured defect is conformant under a partial profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./target/debug/estamora run --spec fixtures \
+            --profile conformance-token@1.0 \
+            --contract fixture:missing-decimals >/dev/null
+
+      - name: The same contract is refused under a profile that requires the method
+        shell: bash
+        run: |
+          set +e
+          ./target/debug/estamora run \
+            --spec ./estamora-conformance-spec \
+            --profile sep-41@1.0 \
+            --contract fixture:missing-decimals >/dev/null 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 1 || { echo "expected 1, got $code"; exit 1; }
+
+  fixtures:
+    name: the fixture set
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build the binary
+        run: cargo build --locked -p estamora-cli
+
+      # The fixture names are in the README, in `examples/failing-contract/README.md`
+      # and in the refusal message an unknown name produces. A name that was renamed
+      # in one place and not the others is a documented command that does not run, so
+      # the message is asserted to list exactly the fixtures that exist.
+      - name: An unknown fixture is refused by name, listing the fixtures
+        shell: bash
+        run: |
+          set +e
+          output=$(./target/debug/estamora run --spec fixtures \
+            --profile conformance-token@1.0 --contract fixture:no-such-fixture 2>&1)
+          set -e
+          echo "$output"
+          for expected in none skips-authorization omits-event wrong-credit-amount \
+                          double-emits wrong-event-amount allows-overdraft missing-decimals; do
+            case "$output" in
+              *"$expected"*) ;;
+              *) echo "the refusal message does not name fixture:$expected"; exit 1 ;;
+            esac
+          done
+
+# There is deliberately no job that builds the fixture contracts for `wasm32v1-none`.
+#
+# The fixtures are measured as Rust types: the SDK registers a contract from a type, so
+# the test suite and every example deploy one without an artifact. Building them for the
+# contract target would need the `testutils` feature off the wasm build and on the host
+# build, split per target in the fixture manifest, and the artifact would then exist only
+# to be measured through a code path — the `.wasm` target — that already has its own
+# tests. A job that builds an artifact nothing consumes is a job that goes red for
+# reasons nobody investigates, which is worse than not having it.
+#
+# What the `.wasm` path needs instead is a real artifact from a real contract, and that
+# is what `examples/local-contract/` is for.

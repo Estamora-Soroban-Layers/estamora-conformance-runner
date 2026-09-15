@@ -1,0 +1,92 @@
+name: Profile support
+description: A profile from the specification repository does not execute, or executes wrongly.
+title: "profile: "
+labels: ["profile-support", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this when a profile is the problem: the runner refuses a bundle it should
+        accept, executes a requirement in a way the profile does not describe, or cannot
+        express something the format allows.
+
+        **Authoring a new profile is not this.** Profiles live in
+        [`estamora-conformance-spec`](https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec),
+        and a proposal for a new one belongs there, where it can be reviewed as a
+        requirement rather than as a bug report.
+
+  - type: input
+    id: profile
+    attributes:
+      label: Profile
+      description: The profile id and version, with its digest if you have it.
+      placeholder: sep-41@1.0
+    validations:
+      required: true
+
+  - type: input
+    id: revision
+    attributes:
+      label: Specification revision
+      description: The commit of `estamora-conformance-spec` you read the profile from.
+      placeholder: 4f2a1c9
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: What you ran
+      description: |
+        Preferably `estamora validate --profile <the profile>`, which is the command that
+        isolates a profile problem from a contract problem. Paste the output.
+      render: console
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of problem
+      options:
+        - The runner refused a bundle the specification's own tooling accepts
+        - The specification's tooling refused a bundle that should be valid
+        - The runner accepted a bundle the specification's tooling rejects
+        - A requirement is evaluated in a way the profile does not describe
+        - The format cannot express something a profile needs
+        - A vector refers to something the profile does not declare, and I think it should
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: profile-excerpt
+    attributes:
+      label: The part of the profile at issue
+      description: The smallest excerpt that shows it. A whole bundle is not readable.
+      render: yaml
+    validations:
+      required: false
+
+  - type: textarea
+    id: classification
+    attributes:
+      label: What the runner reported
+      description: |
+        The failure class, if it named one, and the exit code. If it was a verdict rather
+        than a failure, say which checks were reported and which you think are wrong.
+      render: console
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: The bundle validates against the specification's schemas.
+          required: false
+        - label: |
+            I have not changed the profile locally, or if I have, the excerpt shows the
+            change.
+          required: false

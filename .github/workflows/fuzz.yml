@@ -1,0 +1,86 @@
+name: Fuzzing
+
+# The fuzz targets cover the boundaries where untrusted input arrives: a profile, a
+# vector, an assertion expression and a report. Each is a document this runner is handed
+# by somebody else, and the property being tested is not "it rejects bad input" but "it
+# never panics, never allocates without bound, and never reports a fabricated pass".
+#
+# This is a smoke run, not a campaign: a few minutes per target on every pull request,
+# and a longer run nightly. Fuzzing proves nothing about a contract's security, and
+# nothing here is offered as such — see `docs/security.md`.
+
+on:
+  pull_request:
+    paths:
+      - "fuzz/**"
+      - "crates/estamora-profile/**"
+      - "crates/estamora-vectors/**"
+      - "crates/estamora-report/**"
+      - "crates/estamora-core/**"
+      - ".github/workflows/fuzz.yml"
+  push:
+    branches: [main]
+    paths:
+      - "fuzz/**"
+  schedule:
+    # Nightly, so that a target that only fails after a long exploration gets a chance
+    # to, without making every pull request wait for it.
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: fuzz-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # One per boundary, named as `cargo fuzz run` names them. See `fuzz/README.md`
+        # for which input each one covers and why they are in their own workspace.
+        target: [profile-fuzzer, vector-fuzzer, assertion-fuzzer, report-fuzzer]
+    steps:
+      - uses: actions/checkout@v4
+
+      # `cargo-fuzz` builds with the sanitizer that `-Z sanitizer=address` requires, and
+      # libFuzzer with coverage instrumentation, both of which need nightly. The pinned
+      # stable toolchain still builds and tests the workspace; only this job moves.
+      - name: Install nightly
+        run: rustup toolchain install nightly --profile minimal
+
+      - name: Install cargo-fuzz
+        uses: taiki-e/install-action@cargo-fuzz
+
+      - name: Cache the corpus
+        uses: actions/cache@v4
+        with:
+          path: |
+            fuzz/corpus/${{ matrix.target }}
+            fuzz/artifacts/${{ matrix.target }}
+          key: fuzz-${{ matrix.target }}-${{ github.sha }}
+          restore-keys: |
+            fuzz-${{ matrix.target }}-
+
+      # A time limit rather than an iteration count, because a target that loops is
+      # exactly the failure this is looking for and an iteration count would not notice
+      # a single slow input.
+      - name: Fuzz ${{ matrix.target }}
+        run: |
+          duration=${{ github.event_name == 'schedule' && 600 || 120 }}
+          cargo +nightly fuzz run "${{ matrix.target }}" -- -max_total_time="$duration"
+
+      # A crashing input is the artefact, and it is the only thing anybody can act on
+      # from a fuzz run. Uploading it on failure rather than on success is the point.
+      - name: Upload a crashing input
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-artifacts-${{ matrix.target }}
+          path: fuzz/artifacts/${{ matrix.target }}
+          if-no-files-found: ignore

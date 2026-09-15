@@ -1,0 +1,95 @@
+name: Bug report
+description: Something Estamora reported, refused or computed is wrong.
+title: "bug: "
+labels: ["bug", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time. Estamora's whole value is that its output can be
+        relied on for what it says, so a wrong verdict, a misattributed failure or a
+        fabricated pass is the most important kind of bug there is.
+
+        If what you found could let somebody act on a false result — a check reported as
+        passed when it was not made, an environment failure reported as a contract
+        failure, a receipt that verifies when it should not — please do **not** open an
+        issue. Use GitHub's private vulnerability reporting, as described in
+        [`SECURITY.md`](../../SECURITY.md).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The command you ran, and what it printed. Paste the output rather than describing it.
+      render: console
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+      description: |
+        If a verdict was wrong, say which check was wrong and what the contract actually
+        does — an implementation detail, a diff, or a link to the contract's source.
+      placeholder: I expected the run to report ... because the contract ...
+    validations:
+      required: true
+
+  - type: input
+    id: runner-version
+    attributes:
+      label: Runner version
+      description: The output of `estamora --version`.
+      placeholder: estamora 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: profile
+    attributes:
+      label: Profile
+      description: |
+        The profile you measured against, with its version and digest — `estamora validate
+        --profile <the one you used>` prints both. A verdict is a verdict under a profile,
+        and a bug report that does not name it cannot be reproduced.
+      placeholder: sep-41@1.0, digest sha256:…
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: A minimal reproduction
+      description: |
+        The smallest thing that shows the problem. A profile, a vector, or an artifact —
+        reduced as far as it goes. `estamora --spec fixtures --profile
+        conformance-token@1.0 --contract fixture:<name>` is the fastest starting point,
+        because every fixture is the reference token with exactly one defect.
+      render: yaml
+    validations:
+      required: false
+
+  - type: input
+    id: spec-revision
+    attributes:
+      label: Specification revision
+      description: |
+        The revision of `estamora-conformance-spec` you read the profile from. Two runs
+        against two revisions of the same profile version can disagree, and the digest is
+        what tells them apart.
+      placeholder: 4f2a1c9
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I read `docs/troubleshooting.md` and the failure class is not one it explains.
+          required: false
+        - label: |
+            The contract I am measuring is one I am allowed to share, or the reproduction
+            does not include it.
+          required: false

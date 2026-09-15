@@ -1,0 +1,86 @@
+name: Documentation
+
+# Documentation is part of what this project is, not a by-product: the tool answers a
+# question, and a reader has to be able to find out what its answer means. So the docs
+# are built, the API docs are built with warnings denied, and every relative link is
+# resolved.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/*.md"
+      - "docs/**"
+      - "**/*.rs"
+      - ".github/check-links.py"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "**/*.md"
+      - "docs/**"
+      - "**/*.rs"
+      - ".github/check-links.py"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: docs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build and check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      # Every public item in this workspace is documented, and the lints make a missing
+      # one a warning. Denying warnings here turns that into a failure, because a
+      # library whose whole purpose is to be depended on is not much use if a consumer
+      # has to read the source to learn what a type means.
+      - name: Build the API documentation
+        env:
+          RUSTDOCFLAGS: -Dwarnings
+        run: cargo doc --workspace --no-deps --locked
+
+      # Relative links are the ones that rot, because nothing resolves them at commit
+      # time: a document that moved leaves a link that looks fine and goes nowhere.
+      # Absolute URLs are deliberately not fetched — a red build caused by somebody
+      # else's outage teaches people to ignore the job.
+      - name: Check Markdown links
+        run: python3 .github/check-links.py
+
+      # The documentation states numbers: the exit-code table, the fixture names, the
+      # dimension names. Two of them are checked mechanically elsewhere (the exit codes
+      # in `ci.yml`, the fixture names in `integration.yml`); this one checks that the
+      # command reference names every command the binary actually offers, which is the
+      # list that grows without anybody noticing.
+      - name: Every command is documented
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --locked -p estamora-cli
+          help=$(./target/debug/estamora --help)
+          failed=0
+          for command in run inspect profile validate report certify; do
+            case "$help" in
+              *"$command"*) ;;
+              *) echo "the CLI offers '$command' but --help does not"; failed=1 ;;
+            esac
+            grep -q "estamora $command" docs/cli.md \
+              || { echo "docs/cli.md does not document '$command'"; failed=1; }
+          done
+          exit "$failed"
+
+      - name: Upload the API documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustdoc
+          path: target/doc
+          if-no-files-found: error

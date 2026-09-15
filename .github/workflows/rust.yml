@@ -1,0 +1,123 @@
+name: Rust
+
+# The fast checks, on their own, so that a formatting or lint mistake gets a verdict in
+# under a minute instead of waiting behind a full three-platform test run. Nothing here
+# needs the specification repository, a network or a compiled contract fixture.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/*.rs"
+      - "**/Cargo.toml"
+      - "Cargo.lock"
+      - "rustfmt.toml"
+      - "clippy.toml"
+      - "rust-toolchain.toml"
+      - ".github/workflows/rust.yml"
+  pull_request:
+    paths:
+      - "**/*.rs"
+      - "**/Cargo.toml"
+      - "Cargo.lock"
+      - "rustfmt.toml"
+      - "clippy.toml"
+      - "rust-toolchain.toml"
+      - ".github/workflows/rust.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: rust-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    name: format and lints
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Formatting
+        run: cargo fmt --all -- --check
+
+      # The workspace lints are the policy: `unwrap_used`, `expect_used`,
+      # `print_stdout`, `print_stderr` and `todo` are denied, and an `#[allow(...)]`
+      # without a `reason` is an error. Repeating the flags here would let the two
+      # drift, so this runs exactly what a contributor runs.
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      # A crate that does not declare what it is cannot be published usefully, and a
+      # missing description is the field that goes missing first.
+      - name: Manifest metadata
+        run: |
+          for crate in estamora-core estamora-profile estamora-vectors \
+                       estamora-soroban estamora-assertions estamora-report \
+                       estamora-certification estamora-cli; do
+            grep -q '^description' "crates/$crate/Cargo.toml" \
+              || { echo "crates/$crate/Cargo.toml declares no description"; exit 1; }
+            grep -q '^license' "crates/$crate/Cargo.toml" \
+              || { echo "crates/$crate/Cargo.toml declares no license"; exit 1; }
+          done
+
+  deny:
+    name: dependency policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@cargo-deny
+
+      # The dependency tree is part of what a conformance result means: a replaced
+      # `sha2` changes the tool that produced a verdict. `deny.toml` records the
+      # decisions — licences derived from what is actually in the tree, no git
+      # dependencies, and two crates no published library may carry.
+      - name: Check advisories, licences, bans and sources
+        run: cargo deny check
+
+  toolchain:
+    name: pinned toolchain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Two versions are promises here, and they have to agree.
+      #
+      # `rust-version` in the workspace manifest is what a consumer needs to build a
+      # published crate. `rust-toolchain.toml` is what this repository builds and
+      # tests with, and it is part of what a conformance result means: the report
+      # names the runner version, and the toolchain behind that number should not be a
+      # mystery.
+      #
+      # A pinned channel that is *lower* than the promised MSRV would mean the
+      # promise is untested — nothing in CI would ever build against it. This asserts
+      # they agree rather than trusting that somebody kept them in step, which is the
+      # kind of drift that only shows up in a user's build.
+      - name: The pinned toolchain satisfies the promised MSRV
+        run: |
+          promised=$(sed -n '/^\[workspace.package\]/,/^\[/s/^rust-version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          pinned=$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)
+          test -n "$promised" || { echo "Cargo.toml declares no rust-version"; exit 1; }
+          test -n "$pinned" || { echo "rust-toolchain.toml declares no channel"; exit 1; }
+
+          pinned_minor=${pinned%.*}
+          case "$promised" in
+            "$pinned_minor"|"$pinned") ;;
+            *)
+              echo "rust-version is $promised but the pinned toolchain is $pinned."
+              echo "CI builds and tests with the pinned toolchain, so an MSRV below it is never exercised."
+              exit 1
+              ;;
+          esac
+
+          echo "pinned $pinned satisfies rust-version $promised"

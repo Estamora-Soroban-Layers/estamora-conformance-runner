@@ -1,0 +1,76 @@
+name: Feature request
+description: Estamora should do something it does not do.
+title: "feature: "
+labels: ["enhancement", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Estamora does one thing: it decides whether a contract's actual behaviour conforms
+        to a defined profile. A feature request is much easier to act on when it says
+        which part of that sentence it makes better.
+
+        Two things to check first, because they are the usual answers:
+
+        * **Is this a profile rather than a runner feature?** A profile belongs in
+          [`estamora-conformance-spec`](https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec),
+          and most "Estamora should check X" requests are a new requirement, not new code.
+        * **Is it already declined by design?** `README.md` and `docs/security.md` say what
+          Estamora does not do, and why: it is not a security scanner, not a formal
+          verifier, not a dashboard, and it does not publish a verdict it could not reach.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: |
+        What you are trying to find out that you cannot find out today. A concrete
+        situation is worth more than a description of a capability: "I cannot tell whether
+        a contract's `approve` respects the ledger bound" is actionable, "better event
+        checking" is not.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like it to do
+      description: A command, a flag, a profile field, a new check. Rough is fine.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do instead today
+      description: |
+        A workaround tells a reviewer how big the gap actually is. If the answer is
+        "nothing", say so — that is the strongest form of the request.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part
+      multiple: true
+      options:
+        - Measuring a contract (run, invocation, observation)
+        - A conformance dimension (interface, authorization, events, behaviour, state, invariants, failure)
+        - Reading profiles and vectors
+        - Reports and receipts
+        - The CLI and CI integration
+        - Documentation
+        - Not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: This does not require Estamora to decide a requirement the specification does not state.
+          required: false
+        - label: I understand that a passing run is not a statement that a contract is secure.
+          required: false

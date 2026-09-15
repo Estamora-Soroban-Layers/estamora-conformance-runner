@@ -1,0 +1,177 @@
+name: CI
+
+# The whole suite, on the platforms this tool claims to run on.
+#
+# The toolchain is pinned in `rust-toolchain.toml`, so there is no channel matrix
+# here: a conformance result is only meaningful if the tooling that produced it is
+# identified, and "stable" is not an identity that stays put. Updating the pin is a
+# deliberate commit, and this workflow builds it on every platform the runner
+# supports so that the pin is exercised rather than assumed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # A new push to a pull request supersedes the previous run. On `main` the
+  # group includes the ref, so several pushes in a row each get their own run
+  # rather than cancelling one another.
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # The checkout of the specification repository, in the one place every job can see it.
+  ESTAMORA_SPEC_REPO: ${{ github.workspace }}/estamora-conformance-spec
+  # A warning in a dependency's build script is not this project's business, but a
+  # warning in its own code is, and the workspace lints already make those errors.
+  RUSTFLAGS: -Dwarnings
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      # The specification repository, checked out beside this one. The
+      # cross-repository tests read it and skip themselves without it, so this step
+      # is what turns "skipped" into "checked". It is not pinned to a moving branch:
+      # which revision of which profile a verdict was produced against is part of
+      # what the verdict means.
+      # Checked out *inside* the workspace rather than beside it: `actions/checkout`
+      # resolves `path` against the workspace and a path outside it is not portable
+      # across the hosted runners. `ESTAMORA_SPEC_REPO` is what tells the runner where
+      # the checkout is, and the tests that read the real profile use the same variable.
+      - name: Check out the specification repository
+        uses: actions/checkout@v4
+        with:
+          repository: Estamora-Soroban-Layers/estamora-conformance-spec
+          path: estamora-conformance-spec
+
+      - name: Install the pinned toolchain
+        run: rustup show active-toolchain
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Formatting
+        run: cargo fmt --all -- --check
+
+      - name: Lints
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Build
+        run: cargo build --workspace --all-targets --locked
+
+      - name: Test
+        run: cargo test --workspace --locked
+
+  profile:
+    name: profile and corpus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the specification repository
+        uses: actions/checkout@v4
+        with:
+          repository: Estamora-Soroban-Layers/estamora-conformance-spec
+          path: estamora-conformance-spec
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      # The bundle this repository measures its own contracts with. Validating it here
+      # catches an edit that made a requirement unreachable without changing any Rust
+      # — the loader refuses a bundle whose cross-references do not resolve, and no
+      # test would notice, because the tests use a bundle they built themselves.
+      - name: Validate the in-repository profile
+        run: cargo run --quiet -p estamora-cli -- validate --spec fixtures --profile conformance-token@1.0
+
+      - name: Validate SEP-41 from the specification repository
+        run: cargo run --quiet -p estamora-cli -- --spec ./estamora-conformance-spec validate --profile sep-41@1.0
+
+      # The same command a consumer runs, asserted to exit 0. A profile that validates
+      # but cannot be executed is not usable, and the two are checked separately.
+      - name: Measure the reference fixture
+        run: |
+          cargo run --quiet -p estamora-cli -- run \
+            --spec fixtures \
+            --profile conformance-token@1.0 \
+            --contract fixture:none
+
+  exit-codes:
+    name: exit-code contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build the binary
+        run: cargo build --locked -p estamora-cli
+
+      # CI's contract with this tool is its exit codes, so they are asserted as exit
+      # codes and not only as library return values. A wrapper script cannot tell the
+      # difference between a broken profile and a broken contract unless these hold.
+      - name: A non-conformant contract exits 1
+        shell: bash
+        run: |
+          set +e
+          ./target/debug/estamora run --spec fixtures --profile conformance-token@1.0 \
+            --contract fixture:skips-authorization >/dev/null 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 1 || { echo "expected 1, got $code"; exit 1; }
+
+      - name: An unusable profile exits 3
+        shell: bash
+        run: |
+          set +e
+          ./target/debug/estamora validate \
+            --profile fixtures/malformed-inputs/profile-missing-document >/dev/null 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 3 || { echo "expected 3, got $code"; exit 1; }
+
+      - name: A document that is not a report exits 5, never 1
+        shell: bash
+        run: |
+          set +e
+          ./target/debug/estamora report \
+            --report fixtures/malformed-inputs/report-not-a-report.json >/dev/null 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 5 || { echo "expected 5, got $code"; exit 1; }
+
+      - name: A usage error exits 64
+        shell: bash
+        run: |
+          set +e
+          ./target/debug/estamora run --spec fixtures --profile conformance-token@1.0 \
+            --contract fixture:no-such-fixture >/dev/null 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 64 || { echo "expected 64, got $code"; exit 1; }
+
+      - name: An unreachable network target exits 4, never 1
+        shell: bash
+        run: |
+          set +e
+          ./target/debug/estamora run --spec fixtures --profile conformance-token@1.0 \
+            --contract CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC \
+            --network testnet >/dev/null 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 4 || { echo "expected 4, got $code"; exit 1; }

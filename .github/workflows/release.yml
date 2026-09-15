@@ -1,0 +1,103 @@
+name: Release
+
+# Publishing is gated on the tag matching what the repository says it is, because for a
+# conformance tool the version is part of what a result means: the report names the
+# runner version, and a published crate whose manifest disagrees with its tag would make
+# every receipt issued from it uninterpretable.
+#
+# Publishing itself needs a token, and the job for it is written but disabled: a
+# `cargo publish` that nobody has authorised should be a deliberate edit, not a workflow
+# that fires the first time somebody pushes a tag. See the comment on the final job.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  verify:
+    name: verify the tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the tag and the manifest
+        id: versions
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          manifest=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "manifest=$manifest" >> "$GITHUB_OUTPUT"
+
+      # A tag that disagrees with the manifest is the one mistake that cannot be fixed
+      # afterwards: the published crate keeps the version the manifest said.
+      - name: The tag matches the workspace version
+        shell: bash
+        run: |
+          test "${{ steps.versions.outputs.tag }}" = "${{ steps.versions.outputs.manifest }}" \
+            || { echo "tag v${{ steps.versions.outputs.tag }} does not match the workspace version ${{ steps.versions.outputs.manifest }}"; exit 1; }
+
+      - name: The changelog has an entry for it
+        shell: bash
+        run: |
+          grep -q "^## \[${{ steps.versions.outputs.tag }}\]" CHANGELOG.md \
+            || { echo "CHANGELOG.md has no section for ${{ steps.versions.outputs.tag }}"; exit 1; }
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Formatting, lints and the full suite
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo test --workspace --locked
+
+      # The package that gets published is the package that was tested. `--locked` keeps
+      # the dependency tree exactly as committed, which is the whole reason the lock file
+      # is in the repository.
+      - name: Package every publishable crate
+        run: |
+          for crate in estamora-core estamora-profile estamora-vectors \
+                       estamora-soroban estamora-assertions estamora-report \
+                       estamora-certification estamora-cli; do
+            cargo package --locked -p "$crate"
+          done
+
+      - name: Upload the packaged crates
+        uses: actions/upload-artifact@v4
+        with:
+          name: crates
+          path: target/package/*.crate
+          if-no-files-found: error
+
+      - name: Create the release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+
+  # `cargo publish` is deliberately not automated.
+  #
+  # Estamora publishes to crates.io, where a version is immutable and a mistake is
+  # permanent. The tag is pushed by a human, the release is created as a draft, and the
+  # publish is run by a human with a token — which is one command, and the one place in
+  # this repository where that is the right trade. Turning it into a workflow would make
+  # a permanent external action a consequence of `git push --tags`.
+  #
+  # When it is time, from a checkout of the tag, in dependency order:
+  #
+  #   cargo publish -p estamora-core
+  #   cargo publish -p estamora-profile
+  #   cargo publish -p estamora-vectors
+  #   cargo publish -p estamora-soroban
+  #   cargo publish -p estamora-assertions
+  #   cargo publish -p estamora-report
+  #   cargo publish -p estamora-certification
+  #   cargo publish -p estamora-cli
