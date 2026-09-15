@@ -1,0 +1,28 @@
+/target
+**/*.rs.bk
+
+# The lock file is committed on purpose. An unpinned dependency tree would let a
+# conformance verdict change without a commit, which is the drift this project
+# exists to make visible.
+Cargo.lock.orig
+
+# Contract fixtures are compiled from the sources beside them during
+# integration tests. The artefacts are reproducible and are not committed.
+fixtures/contracts/target
+
+# Editor and OS noise.
+.idea
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+
+# A developer's own network credentials are never tracked. The documented form
+# for local configuration is `estamora.local.toml`.
+estamora.local.toml
+*.local.toml
+.env
+.env.*
+
+# Insta snapshots are reviewed and committed; the pending directory is not.
+**/*.snap.new
+**/.insta-pending
