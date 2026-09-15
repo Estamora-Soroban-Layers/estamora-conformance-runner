@@ -82,24 +82,50 @@ wildcards = "deny"
 # SDK's crypto majors are the example in `Cargo.toml` — which is why the default is a
 # warning. `deny` is reserved for a wildcard requirement, which is a version that
 # nobody has decided.
+#
+# Every duplicate this produces was checked against the manifests that require it, and
+# none is a version this workspace chose:
+#
+#   * `stellar-strkey` — `soroban-sdk` pins `=0.0.16` while `soroban-env-host` requires
+#     `0.0.13`, and a caret requirement on `0.0.x` admits exactly one patch. The two
+#     cannot be reconciled, and this workspace's own requirement is `0.0.16`, which is
+#     the SDK's rather than a third opinion.
+#   * `base64` — `stellar-xdr` and `soroban-spec` require `0.22.1`; the TLS stack behind
+#     `reqwest` requires `0.23`. Ours is `0.22.1`, which is the ledger representation's.
+#   * `sha2` — every crate that wants it wants `0.10.x`, and the lock holds exactly one.
+#
+# The rest arrive with the SDK's own crypto and proc-macro dependencies. A duplicate is
+# therefore not evidence of drift here; a *new* duplicate that is not in this list would
+# be, which is the reading `warn` is meant to invite.
 
 [[bans.deny]]
 # The runner must not depend on the CLI, the integration harness, or the fixture
 # contract. Each would make a published crate carry something that is not a library:
 # the harness is tests, the fixture is a contract to measure, and the CLI is a binary.
+#
+# The list names no crate that could depend on the harness, and that is the statement:
+# nothing does. It is present rather than empty because cargo-deny reads an absent list
+# as banning the crate outright, which would fail on the harness being a workspace
+# member at all; with a list, the ban applies to every crate that depends on it.
+#
+# `cargo deny check bans` therefore reports `unused-wrapper` against this entry. That
+# warning is the assertion being made rather than a defect in it — it says no crate
+# depends on the harness — and it disappears the moment one does, which is the change
+# this entry exists to catch. The four crate names that used to be listed here were
+# reported the same way, and were wrong for a different reason: each claimed to route
+# through the harness and none ever had.
 name = "estamora-integration-tests"
-wrappers = ["estamora-cli", "estamora-core", "estamora-report", "estamora-vectors"]
+wrappers = ["estamora-integration-tests"]
 
 [[bans.deny]]
+# Exactly two crates may depend on the fixture contract, and each for a reason rather
+# than by convenience. `estamora-cli` depends on it so that `--contract fixture:<name>`
+# works at all; `estamora-soroban` depends on it in its test configuration, so that the
+# host's behaviour is asserted against a real contract rather than against a mock.
+# Neither makes a fixture part of a library's API: the CLI is a binary and the other is
+# a dev-dependency. The four names that used to be listed here never depended on it.
 name = "estamora-fixture-token"
-wrappers = [
-    "estamora-cli",
-    "estamora-core",
-    "estamora-report",
-    "estamora-vectors",
-    "estamora-assertions",
-    "estamora-soroban",
-]
+wrappers = ["estamora-cli", "estamora-soroban"]
 
 [sources]
 # Crates come from crates.io. A git dependency would make a published crate
