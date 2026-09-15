@@ -14,6 +14,7 @@ pub mod interface;
 pub mod invariants;
 pub mod state;
 
+pub use authorization::AuthorizationReport;
 pub use interface::{
     InterfaceInspection, ObservedMethod, ObservedParameter, canonical_type,
     observed_verifies_method,

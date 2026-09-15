@@ -6,6 +6,27 @@
 //!
 //! Those are two different things, and conflating them is how a test suite ends
 //! up asserting that a call failed without ever establishing why.
+//!
+//! # What the host records, measured rather than assumed
+//!
+//! The demanded authorization is read from the host's own record of what it
+//! *authenticated*, which the SDK exposes as `Env::auths`. That record is per
+//! completed invocation, and this was established by measurement rather than by
+//! reading the documentation, because the answer decides a whole dimension:
+//!
+//! * A call that **completes** reports every authorization it demanded, including
+//!   the invocation tree each one covered. This holds under
+//!   [`AuthorizationMode::Granted`], where `mock_all_auths` records the demand and
+//!   approves it, so the contract's `require_auth` still runs.
+//! * A call that is **refused** reports nothing at all — not "nothing was
+//!   demanded", but no observation. The refusal unwinds the authorization manager
+//!   before the snapshot is taken, and a refusal for a missing signature and a
+//!   refusal for an insufficient balance arrive through the same channel.
+//!
+//! So a refused call leaves the demanded principals unobservable, and
+//! [`AuthorizationRecord::recorded`] returning an empty list must never be read as
+//! "this contract requires no authorization". The assertion layer distinguishes the
+//! two cases; this module is where the distinction is produced.
 
 use soroban_sdk::testutils::{AuthorizedInvocation, MockAuth};
 use soroban_sdk::{Address, Env};
@@ -35,8 +56,8 @@ impl AuthorizationMode {
         match self {
             // `mock_all_auths` records the auths the call demanded and approves
             // them. It is not "skip the check": the contract's `require_auth`
-            // still runs, and what it demanded is still observable through
-            // `recorded`.
+            // still runs, and what it demanded is observable through `recorded`
+            // for as long as the call completes.
             Self::Granted => env.mock_all_auths(),
             Self::Denied => {},
         }
@@ -60,9 +81,12 @@ pub struct AuthorizationRecord {
 impl AuthorizationRecord {
     /// Reads every authorization the last call required on `env`.
     ///
-    /// The SDK exposes this from the host's authorization snapshot, so it is
-    /// available whether the authorization was supplied or withheld, and it is
-    /// cleared between calls by the host.
+    /// Read from the host's authorization snapshot, which holds the authorizations
+    /// of the last **completed** invocation. An empty result therefore means "no
+    /// authorization was authenticated", and it cannot distinguish a contract that
+    /// demanded none from a call that was refused before its demand could be read.
+    /// A caller that needs that distinction has to consult how the call ended; see
+    /// this module's header for why.
     #[must_use]
     pub fn recorded(env: &Env) -> Vec<Self> {
         env.auths()

@@ -26,8 +26,18 @@
 //! Interface compatibility is a property of the contract rather than of a scenario,
 //! so its checks are the same for every vector in a run. They are reported with each
 //! result because the report's shape attaches assertions to vector results, and the
-//! report summary counts *distinct* assertion identifiers so that the repetition is
-//! not read as a larger body of evidence than it is.
+//! report summary counts *distinct* assertion identifiers — taking the worst result
+//! each identifier reached — so that the repetition is not read as a larger body of
+//! evidence than it is, and a check that failed in one scenario is never hidden
+//! behind the same identifier passing in another.
+//!
+//! # A requirement the runner could not observe is a finding, not a failure
+//!
+//! Some requirements are decidable only from an observation the environment did not
+//! produce — the principals a contract demanded cannot be read from a call that was
+//! refused. Recording that as a failed check would blame the contract for the
+//! runner's blind spot, so it is recorded as a diagnostic on the vector instead, and
+//! the vector's verdict rests on the checks that were actually made.
 
 use std::fmt;
 
@@ -138,12 +148,14 @@ pub fn evaluate(observation: &RunObservation<'_>) -> Result<VectorOutcome> {
     assertions.extend(behavior.assertions);
 
     // 3. Authorization.
-    assertions.extend(authorization::evaluate(
-        observation.profile,
-        vector,
-        &end,
-        &call,
-    )?);
+    let authorization = authorization::evaluate(observation.profile, vector, &end, &call)?;
+    for (code, reason) in &authorization.unobservable {
+        diagnostics.push(crate::outcome::OutcomeDiagnostic::new(
+            code.clone(),
+            reason.clone(),
+        ));
+    }
+    assertions.extend(authorization.assertions);
 
     // 4. Events.
     assertions.extend(events::evaluate(observation.profile, vector, &end, &call)?);

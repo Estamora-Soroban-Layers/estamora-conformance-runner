@@ -330,6 +330,125 @@ fn a_signature_the_contract_never_demanded_fails_the_authorization_dimension() {
 
 #[test]
 #[ignore = "needs a checkout of estamora-conformance-spec; set ESTAMORA_SPEC_REPO and pass --ignored"]
+fn a_refused_call_reports_the_demanded_principals_as_unobservable_rather_than_absent() {
+    let Some((bundle, _)) = sep_41() else {
+        return;
+    };
+    let root = spec_root().unwrap();
+    let text = std::fs::read_to_string(
+        root.join("vectors/common/authorization/transfer-without-signature-fails.yaml"),
+    )
+    .unwrap();
+    let negative: VectorDocument = serde_yaml_ng::from_str(&text).unwrap();
+
+    // Alice holds 1000 and nothing moved, which is what a contract that demands
+    // authorization and enforces the balance produces. The host records what it
+    // authenticated, and a refusal unwinds that record — so nothing about alice is
+    // observable here, and the run must say that rather than report `alice` as a
+    // principal the contract demanded and failed to check.
+    let before = Scripted::opening();
+    let outcome = evaluate_vector(&RunObservation {
+        profile: &bundle,
+        vector: &negative,
+        before: &before,
+        after: &before,
+        call: ObservedCall {
+            method: "transfer".to_owned(),
+            outcome: CallResult::Refused { code: None },
+            returned: None,
+            events: Vec::new(),
+            authorizations: Vec::new(),
+            interface_verified: true,
+        },
+        interface: conforming_interface(&bundle),
+    })
+    .unwrap();
+
+    assert_eq!(
+        outcome.status,
+        VectorStatus::Passed,
+        "a conforming refusal must not be reported as a violated requirement; \
+         failures: {:#?}",
+        outcome.failures()
+    );
+    let reported: Vec<&str> = outcome
+        .assertions
+        .iter()
+        .map(|assertion| assertion.id.as_str())
+        .collect();
+    assert!(
+        reported
+            .iter()
+            .any(|id| id.starts_with("authorization/outcome/")),
+        "the refusal itself must still be checked: {reported:?}"
+    );
+    assert!(
+        !reported
+            .iter()
+            .any(|id| id.starts_with("authorization/principal/")
+                || id.starts_with("authorization/coverage/")),
+        "a check that could not be made must not be reported as one that was: {reported:?}"
+    );
+    assert!(
+        outcome
+            .diagnostics
+            .iter()
+            .any(|finding| finding.code.starts_with("authorization-unobservable.")),
+        "the reason the check was not made must be recorded: {:#?}",
+        outcome.diagnostics
+    );
+}
+
+#[test]
+#[ignore = "needs a checkout of estamora-conformance-spec; set ESTAMORA_SPEC_REPO and pass --ignored"]
+fn an_accepted_call_still_reports_the_demanded_principals() {
+    // The other half of the distinction: dropping the checks for a refused call must
+    // not drop them for a call that completed, or the dimension would lose the
+    // coverage requirement entirely.
+    let Some((bundle, vector)) = sep_41() else {
+        return;
+    };
+    let before = Scripted::opening();
+    let after = Scripted::after_conforming_transfer();
+
+    let outcome = evaluate_vector(&RunObservation {
+        profile: &bundle,
+        vector: &vector,
+        before: &before,
+        after: &after,
+        call: conforming_call(),
+        interface: conforming_interface(&bundle),
+    })
+    .unwrap();
+
+    let reported: Vec<&str> = outcome
+        .assertions
+        .iter()
+        .map(|assertion| assertion.id.as_str())
+        .collect();
+    assert!(
+        reported
+            .iter()
+            .any(|id| id.starts_with("authorization/principal/")),
+        "an accepted call must have its demanded principal checked: {reported:?}"
+    );
+    assert!(
+        reported
+            .iter()
+            .any(|id| id.starts_with("authorization/coverage/")),
+        "an accepted call must have its argument coverage checked: {reported:?}"
+    );
+    assert!(
+        !outcome
+            .diagnostics
+            .iter()
+            .any(|finding| finding.code.starts_with("authorization-unobservable.")),
+        "nothing about an accepted call is unobservable"
+    );
+}
+
+#[test]
+#[ignore = "needs a checkout of estamora-conformance-spec; set ESTAMORA_SPEC_REPO and pass --ignored"]
 fn a_refusal_without_interface_inspection_establishes_nothing() {
     let Some((bundle, _)) = sep_41() else {
         return;

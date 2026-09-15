@@ -23,6 +23,25 @@
 //! Every outcome check here consults [`ObservedCall::refusal_is_unambiguous`]. A
 //! contract that does not implement `transfer` at all refuses every call to it, and
 //! would otherwise satisfy "unauthorized transfers must fail" perfectly.
+//!
+//! # What the contract demanded is readable only from a call that completed
+//!
+//! *Who* was asked to authorize, and *which arguments* their authorization covered,
+//! are read from the host's record of what it authenticated. That record belongs to
+//! a completed invocation: a call that was refused unwinds it before it can be read,
+//! and the refusal arrives through the same channel whatever caused it. So for a
+//! refused call the demanded principals are genuinely unobservable, and this
+//! dimension records that as a finding instead of reporting a requirement as
+//! violated on evidence that does not exist.
+//!
+//! Nothing is lost by this, and the reason is worth stating: the discriminating
+//! power of an unauthorized-call vector comes from its *outcome* check. A contract
+//! that never calls `require_auth` accepts the call, and the vector fails on the
+//! outcome; a contract that demands the wrong principal also accepts it, because the
+//! substituted signature is verified, and fails on the outcome for the same reason.
+//! The principal and coverage checks add their weight on the vectors where the call
+//! completes, which is where a contract can be caught demanding a signature that
+//! binds the wrong party to the wrong arguments.
 
 use estamora_core::Result;
 use estamora_profile::ProfileBundle;
@@ -37,6 +56,19 @@ use crate::eval::{Environment, evaluate_value};
 use crate::observation::ObservedCall;
 use crate::outcome::AssertionOutcome;
 use crate::value::Value;
+
+/// What the authorization dimension concluded for one vector.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AuthorizationReport {
+    /// The checks that were reported.
+    pub assertions: Vec<AssertionOutcome>,
+    /// Checks that could not be made, with the reason.
+    ///
+    /// A requirement the runner could not observe is neither satisfied nor
+    /// violated, and recording it here rather than as a failed check is what keeps
+    /// the runner from inventing a contract defect out of its own blind spot.
+    pub unobservable: Vec<(String, String)>,
+}
 
 /// Which authorization path a vector exercises.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,7 +121,7 @@ pub fn evaluate(
     vector: &VectorDocument,
     environment: &Environment<'_>,
     call: &ObservedCall,
-) -> Result<Vec<AssertionOutcome>> {
+) -> Result<AuthorizationReport> {
     let path = AuthorizationPath::of(&vector.authorization);
     let rules: Vec<&AuthorizationRule> = profile
         .documents()
@@ -103,17 +135,41 @@ pub fn evaluate(
         })
         .collect();
 
-    let mut outcomes = vec![plan_outcome(vector, call, path)];
+    let mut report = AuthorizationReport {
+        assertions: vec![plan_outcome(vector, call, path)],
+        unobservable: Vec::new(),
+    };
+
+    // Whether the demanded principals can be read at all. See this module's header
+    // for why a refused call leaves them unobservable rather than empty.
+    let demanded_is_observable = call.accepted();
 
     for rule in rules {
-        outcomes.push(principal_outcome(rule, environment, call)?);
-        outcomes.push(coverage_outcome(rule, call));
+        if demanded_is_observable {
+            report
+                .assertions
+                .push(principal_outcome(rule, environment, call)?);
+            report.assertions.push(coverage_outcome(rule, call));
+        } else {
+            report.unobservable.push((
+                format!("authorization-unobservable.{}", rule.id),
+                format!(
+                    "the call was {} rather than completed, so neither the principal the profile \
+                     requires over `{}` nor the arguments its signature must cover could be read: \
+                     the host records what it authenticated, and a refused call unwinds that record. \
+                     The requirement was not exercised by this vector, and the reason the call was \
+                     refused is checked by the outcome check below rather than assumed here.",
+                    describe(call),
+                    rule.methods.join(", ")
+                ),
+            ));
+        }
         if let Some(outcome) = path_outcome(rule, path, call) {
-            outcomes.push(outcome);
+            report.assertions.push(outcome);
         }
     }
 
-    Ok(outcomes)
+    Ok(report)
 }
 
 /// Whether the call's acceptance matches what the plan said the signing should
@@ -132,7 +188,20 @@ fn plan_outcome(
     let observed = describe(call);
     let held = match vector.authorization.expected {
         AuthorizationExpectation::Accepted | AuthorizationExpectation::NotRequired => {
+            // An accepted authorization path is a statement about *who was entitled to
+            // sign*, not about whether the operation then succeeded. A vector that
+            // requires the call to fail for a business reason — an amount above the
+            // allowance, say — declares its signature accepted precisely because the
+            // refusal must not be attributed to authorization, and reading the plan as
+            // "the call must return" would make such a vector unsatisfiable by any
+            // contract at all.
+            //
+            // So an unambiguous refusal is accepted as consistent with the plan when the
+            // vector itself expects a failure. The failure dimension is what checks that
+            // the refusal was for the declared reason, so nothing is left unexamined.
             call.accepted()
+                || (vector.expected.outcome == estamora_vectors::ExpectedResult::Failure
+                    && call.refusal_is_unambiguous())
         },
         // A required refusal that arrived through an abort is only the contract's
         // decision when the method was known to exist. Without that, the abort
