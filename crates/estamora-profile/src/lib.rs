@@ -19,9 +19,12 @@
 //! stop the run rather than produce a verdict, because a verdict produced against
 //! requirements that were partly ignored is worse than no verdict at all.
 #![forbid(unsafe_code)]
+
+pub mod loader;
 pub mod spec;
 pub mod types;
 
+pub use loader::{BUNDLE_ENTRY_POINT, MAX_DOCUMENT_BYTES, ProfileBundle, ProfileReference};
 pub use spec::{SUPPORTED_SPEC_VERSION, SpecVersion};
 pub use types::{
     ArgumentAuthorization, BundleManifest, Compatibility, InterfaceCoverage, Invocation,
@@ -29,3 +32,6 @@ pub use types::{
     ProfileDocument, ProfileMetadata, ProfileStatus, Provenance, ProvenanceSource,
     RequirementStatus, SpecificationReference, TypeExpr, UpstreamStatus,
 };
+
+#[cfg(test)]
+mod tests;
