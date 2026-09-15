@@ -12,7 +12,12 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    # Three components, so that a major-version action tag -- `v1`, the ref a workflow
+    # pins with `uses: ...@v1` -- does not start a release. This workflow asserts that
+    # the tag equals the workspace version, and `v1` never will, so matching `v*` here
+    # would make every move of the action tag a red release run. The specification
+    # repository uses the same pattern for the same reason.
+    tags: ["v*.*.*"]
   workflow_dispatch:
 
 permissions:
