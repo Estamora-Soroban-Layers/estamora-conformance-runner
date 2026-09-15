@@ -216,6 +216,19 @@ mod tests {
         );
     }
 
+    /// The gate is on the whole test rather than on the `symlink` call, deliberately.
+    ///
+    /// With the call gated inside the body, the test still *ran* on Windows and still
+    /// passed: it asserted that two readings of an unchanged bundle agree, which the test
+    /// above already asserts and which says nothing about links. A test that passes
+    /// without exercising its subject is worse than an absent one, because the count of
+    /// passing tests is what a reader checks.
+    ///
+    /// The behaviour itself is Unix-specific: creating a directory symlink on Windows
+    /// needs a privilege the test runner may not hold, and `std::os::windows` offers a
+    /// different mechanism with different semantics. Nothing is asserted there rather
+    /// than something that would pass for the wrong reason.
+    #[cfg(unix)]
     #[test]
     fn a_remote_symlink_is_not_followed() {
         // A tree that can reach outside itself through a link is not the tree the
@@ -224,7 +237,6 @@ mod tests {
         fs::write(outside.path().join("secret.yaml"), "secret: true\n").unwrap();
         let bundle = tempfile::tempdir().unwrap();
         fs::write(bundle.path().join("methods.yaml"), "methods: []\n").unwrap();
-        #[cfg(unix)]
         std::os::unix::fs::symlink(outside.path(), bundle.path().join("link")).unwrap();
 
         let digest = profile(bundle.path()).unwrap();
