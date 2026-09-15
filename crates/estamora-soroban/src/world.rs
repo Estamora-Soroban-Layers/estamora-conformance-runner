@@ -380,11 +380,11 @@ fn describe(env: &Env, val: Val) -> String {
 )]
 mod tests {
     use super::{Actor, AllowanceGrant, BALANCES, ContractWorld};
-    use crate::fixtures::ConformingToken;
     use crate::host::LocalHost;
     use estamora_core::ErrorClass;
     use estamora_core::value::Value;
     use estamora_core::world::World as _;
+    use estamora_fixture_token::ConformingToken;
     use soroban_sdk::Address;
     use soroban_sdk::testutils::Address as _;
 

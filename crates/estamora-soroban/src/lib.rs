@@ -41,6 +41,4 @@ pub use invoker::{CallOutcome, Invocation, invoke};
 pub use world::{Actor, AllowanceGrant, ContractWorld};
 
 #[cfg(test)]
-mod fixtures;
-#[cfg(test)]
 mod tests;

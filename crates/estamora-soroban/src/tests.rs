@@ -22,12 +22,12 @@
 
 use soroban_sdk::testutils::Address as _;
 use soroban_sdk::testutils::{MockAuth, MockAuthInvoke};
-use soroban_sdk::{Address, Env, IntoVal, TryFromVal as _, Val, Vec, symbol_short};
+use soroban_sdk::{Address, Env, IntoVal, Symbol, TryFromVal as _, Val, Vec, symbol_short};
 
 use crate::auth::{self, AuthorizationMode};
-use crate::fixtures::ConformingToken;
 use crate::host::{LedgerPoint, LocalHost};
 use crate::invoker::{CallOutcome, invoke};
+use estamora_fixture_token::ConformingToken;
 
 /// A host with a registered conforming token and three accounts.
 fn scenario() -> (Env, Address, Address, Address, Address) {
@@ -41,9 +41,11 @@ fn scenario() -> (Env, Address, Address, Address, Address) {
 }
 
 fn mint(env: &Env, contract: &Address, who: &Address, amount: i128) {
+    // The fixture's setup entry point rather than a profile method, and its name is
+    // longer than a short symbol can hold, so it is built rather than declared.
     let _: () = env.invoke_contract(
         contract,
-        &symbol_short!("mint"),
+        &Symbol::new(env, "fixture_mint"),
         (who.clone(), amount).into_val(env),
     );
 }
@@ -203,7 +205,15 @@ fn a_transfer_authorized_by_the_wrong_actor_is_refused() {
 
 #[test]
 fn a_contract_that_skips_its_authorization_check_is_caught() {
-    let (env, contract, alice, bob, _) = scenario();
+    let host = LocalHost::new(LedgerPoint::new(1_000, 1_768_478_400));
+    let env = host.env().clone();
+    // The fixture that is wrong in exactly this way, rather than a method name on
+    // the conforming fixture: a defect is selected by name so that adding one cannot
+    // change which contract an existing test measures.
+    let contract =
+        estamora_fixture_token::deploy(&env, estamora_fixture_token::Defect::SkipsAuthorization);
+    let alice = Address::generate(&env);
+    let bob = Address::generate(&env);
     mint(&env, &contract, &alice, 1_000);
     AuthorizationMode::Denied.apply(&env);
 
@@ -212,7 +222,7 @@ fn a_contract_that_skips_its_authorization_check_is_caught() {
     let observed = invoke(
         &env,
         &contract,
-        "transfer_unchecked",
+        "transfer",
         (alice.clone(), bob.clone(), 250_i128).into_val(&env),
         true,
     )

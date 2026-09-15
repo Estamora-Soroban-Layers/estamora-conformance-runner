@@ -21,4 +21,5 @@ soroban-sdk = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+estamora-fixture-token = { path = "../../fixtures/contracts/conformance-token" }
 serde_json = { workspace = true }

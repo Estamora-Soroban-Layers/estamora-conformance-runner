@@ -1,0 +1,22 @@
+[package]
+name = "estamora-fixture-token"
+description = "The contracts Estamora's own tests and examples measure, each wrong in exactly one way."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+# A fixture contract is compiled by the same SDK a user's contract is, and this crate
+# is a workspace member rather than a module of the runner so that `fixtures/` holds
+# contracts and nothing else. It is never published.
+[dependencies]
+soroban-sdk = { workspace = true }
