@@ -55,7 +55,11 @@ Two properties of the renderings are worth relying on:
   byte-identical document, so a job can publish a machine-readable result and a
   reviewer can render the same result as Markdown without re-running anything.
 
-## An example workflow
+## The Action
+
+The shortest integration, and the one this repository maintains as an interface rather than
+as an example. `action.yml` builds the tool from the revision the `uses:` reference pins,
+runs it, and exits with the same code the run exited with:
 
 ```yaml
 name: Estamora conformance
@@ -69,22 +73,86 @@ jobs:
   conformance:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The profiles are normative and live in the other repository. Pin the
       # revision: which revision of which profile a verdict was produced against
       # is part of what the verdict means.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: Estamora-Soroban-Layers/estamora-conformance-spec
-          ref: <pinned-revision>
+          ref: v0.1.1
           path: estamora-conformance-spec
-
-      - name: Install Estamora
-        run: ./estamora-conformance-runner/scripts/install.sh
 
       - name: Build the contract
         run: cargo build --target wasm32v1-none --release -p my-token
+
+      - name: Measure it
+        uses: Estamora-Soroban-Layers/estamora-conformance-runner@v1
+        with:
+          spec: estamora-conformance-spec
+          profile: sep-41@1.0
+          contract: ./target/wasm32v1-none/release/my_token.wasm
+          format: junit
+          out: conformance.xml
+          report: conformance.json
+```
+
+Two things about that step are worth knowing before it runs in a busy repository.
+
+**It compiles the tool from source.** The action deliberately does not download a binary:
+a verdict is only meaningful if the tool that produced it is identified, and building from
+the revision `uses:` pins is what makes the revision the identity rather than whatever a
+release channel happened to point at. The cost is a few minutes on a cold runner, which the
+`Swatinem/rust-cache` step below removes on the second run. If the cost matters more than
+the pinning, install a released binary instead and pass `install: false`.
+
+**Pin a release, not a major tag, when a verdict has to reproduce.**
+`@v1` follows the current major version, so it moves; `@v0.1.0` does not. Use the major tag
+while you are adopting this, and a release tag once a result you have published has to be
+reproducible from the workflow that produced it.
+
+The action sets `status`, `exit-code` and `report` as outputs, so a later step can branch on
+the verdict itself rather than on a bare failure:
+
+```yaml
+      - if: steps.conformance.outputs.status == 'INCONCLUSIVE'
+        run: echo "::warning::Estamora could not decide; this is not a contract defect"
+```
+
+### Caching, and a longer example
+
+```yaml
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Measure it
+        uses: Estamora-Soroban-Layers/estamora-conformance-runner@v0.1.0
+        with:
+          spec: estamora-conformance-spec
+          profile: sep-41@1.0
+          contract: ${{ vars.CONTRACT_ID }}
+          network: testnet
+          tags: authorization events
+          report: conformance.json
+
+      - name: Publish the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: estamora-report
+          path: conformance.json
+```
+
+### Without the Action
+
+Not every pipeline is on GitHub, and a job that already installs its own tooling should not
+install a second one. The released binary and the CLI are the portable surface:
+
+```yaml
+      - name: Install Estamora
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/Estamora-Soroban-Layers/estamora-conformance-runner/v0.1.0/scripts/install-binary.sh | sh
 
       - name: Measure it
         run: |
@@ -94,16 +162,11 @@ jobs:
             --contract ./target/wasm32v1-none/release/my_token.wasm \
             --format junit --out conformance.xml \
             --report conformance.json
-
-      - name: Publish the report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: estamora-report
-          path: |
-            conformance.json
-            conformance.xml
 ```
+
+The installer verifies the archive against the release's published `SHA256SUMS` and refuses
+to install anything it cannot check — which matters more here than anywhere else, because
+the tool it is installing is the one whose verdict you are about to trust.
 
 Note what the job does *not* do: it does not make the conformance result a condition
 for anything else in the workflow, and it does not pass `--no-fail`. The exit code is
