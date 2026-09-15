@@ -14,6 +14,10 @@ on:
       - "rustfmt.toml"
       - "clippy.toml"
       - "rust-toolchain.toml"
+      # The working-tree newline policy is a formatting input, not housekeeping: with
+      # `eol=lf` removed, windows-latest checks out CRLF and `cargo fmt --check` fails
+      # on every file while ubuntu and macos stay green.
+      - ".gitattributes"
       - ".github/workflows/rust.yml"
   pull_request:
     paths:
@@ -23,6 +27,10 @@ on:
       - "rustfmt.toml"
       - "clippy.toml"
       - "rust-toolchain.toml"
+      # The working-tree newline policy is a formatting input, not housekeeping: with
+      # `eol=lf` removed, windows-latest checks out CRLF and `cargo fmt --check` fails
+      # on every file while ubuntu and macos stay green.
+      - ".gitattributes"
       - ".github/workflows/rust.yml"
   workflow_dispatch:
 

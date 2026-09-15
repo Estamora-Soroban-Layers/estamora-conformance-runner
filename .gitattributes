@@ -1,0 +1,19 @@
+# Line endings are a property of the repository, not of whoever cloned it.
+#
+# `rustfmt.toml` sets `newline_style = "Unix"`, so `cargo fmt --all -- --check` requires LF
+# in the working tree. Git for Windows defaults to `core.autocrlf=true`, which rewrites
+# text files to CRLF on checkout. On `windows-latest` that turned a passing formatting
+# check into roughly fifty `Incorrect newline style` reports and a red Rust workflow, from
+# the same commit that passed on ubuntu and macos.
+#
+# The disagreement is between two defaults that are each reasonable on their own, so it is
+# settled here, once, instead of by relaxing the formatting policy. Removing the pin from
+# `rustfmt.toml` would leave every contributor's working tree a different artefact
+# depending on how their machine happens to be configured, and this repository is read as
+# an artefact.
+#
+# `text=auto` keeps Git's own binary detection, so only files Git would treat as text are
+# normalised and anything else is stored and checked out byte for byte. `eol=lf` pins the
+# working tree on every platform, which is also what the committed `Cargo.lock` and the
+# digests the runner computes assume.
+* text=auto eol=lf
