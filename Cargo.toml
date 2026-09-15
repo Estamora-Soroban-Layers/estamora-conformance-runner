@@ -19,6 +19,7 @@
 resolver = "3"
 members = [
   "crates/estamora-core",
+  "crates/estamora-soroban",
 ]
 
 [workspace.package]
@@ -81,7 +82,12 @@ criterion = "0.8.2"
 # Lints are workspace-wide so that a new crate cannot be less strict than its
 # neighbours by accident.
 [workspace.lints.rust]
-unsafe_code = "forbid"
+# `deny` rather than `forbid`: the Soroban SDK's `#[contractimpl]` macro installs
+# a contract entry point inside an `allow(unsafe_code)` of its own, and `forbid`
+# cannot be overridden even by a macro expansion, so `forbid` here would make
+# contract fixtures impossible to compile. `deny` still rejects unsafe code that
+# anyone writes by hand, which is what the rule is actually for.
+unsafe_code = "deny"
 missing_debug_implementations = "warn"
 missing_docs = "warn"
 unused_qualifications = "warn"
