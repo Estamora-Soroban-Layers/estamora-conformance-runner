@@ -101,7 +101,7 @@ jobs:
       # from a fuzz run. Uploading it on failure rather than on success is the point.
       - name: Upload a crashing input
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fuzz-artifacts-${{ matrix.target }}
           path: fuzz/artifacts/${{ matrix.target }}
