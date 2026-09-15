@@ -98,6 +98,22 @@ jobs:
           path: target/package/*.crate
           if-no-files-found: error
 
+  # Creating a release needs write access and verifying a tag does not, so the two are
+  # separate jobs. Everything above runs with `contents: read`, which is what makes the
+  # verification worth having: a job that could write could also, by mistake, publish
+  # something the checks had not passed.
+  draft:
+    name: draft the release
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # A draft, deliberately. The tag and the changelog entry are the record of what the
+      # version means, and publishing that record is a person's decision rather than a
+      # consequence of pushing a ref.
       - name: Create the release
         uses: softprops/action-gh-release@v3
         with:
