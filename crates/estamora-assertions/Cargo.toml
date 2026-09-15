@@ -1,0 +1,26 @@
+[package]
+name = "estamora-assertions"
+description = "Evaluates an Estamora requirement against an observed Soroban execution."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+# The evaluator depends on nothing but the shared vocabulary, and that is
+# deliberate. It reaches state through its own `World` trait rather than through a
+# ledger, so every rule about comparison is testable without an execution
+# environment, and the crates that do know about Soroban stay below it.
+[dependencies]
+estamora-core = { path = "../estamora-core" }
+serde = { workspace = true }
+
+[dev-dependencies]
+serde_yaml_ng = { workspace = true }

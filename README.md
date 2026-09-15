@@ -36,13 +36,14 @@ aspirational. What exists and is tested today:
 | `estamora-soroban` | **Implemented for local execution.** A deterministic host pinned to a declared ledger point, contract registration from WebAssembly or an in-repository fixture, invocation with outcome classification, event capture, and authorization as a scenario property with the demanded authorizations recorded. |
 | `estamora-profile` | **Implemented.** Loads a bundle, refuses a specification format it cannot execute, refuses a manifest entry that escapes the bundle or a document that is oversized, parses all six documents into typed structures, checks every cross-reference between them, keeps a valid bundle's warnings rather than discarding them, and refuses a bundle stored under an identity other than the one it declares. |
 | `estamora-vectors` | **Implemented.** Loads the corpus a profile declares — its own operation directories plus the shared families it consumes — checks every vector against the profile it was found under, and excludes a profile-independent vector whose method the profile does not implement rather than inventing a defect. |
+| `estamora-assertions` | **Implemented for the expression algebra.** Interprets every value expression and predicate the format defines — comparisons, relative changes, aggregates over a resource set, arithmetic, composites — against a `World` trait that abstracts the execution environment, producing a result that held, or did not, or could not be evaluated. |
 
 Nothing in the table below exists yet. It is the intended layout, listed so that the
 boundary between crates is reviewable before the code is written.
 
 | Crate | Responsibility |
 | --- | --- |
-| `estamora-assertions` | Evaluate one profile requirement against one observation |
+| `estamora-assertions` | The seven per-dimension evaluators — interface, authorization, events, behaviour, state, invariants, failure — built on the algebra that now exists |
 | `estamora-report` | Render results as JSON, Markdown and JUnit |
 | `estamora-certification` | Digest, receipt and receipt verification |
 | `estamora-cli` | The `estamora` binary |
