@@ -109,6 +109,26 @@ pub fn fixture_config(defect: &str, tags: &[&str]) -> estamora_cli::RunConfig {
     config
 }
 
+/// Reports that a test did nothing, because its environment was not configured.
+///
+/// A test that needs a network and has none is neither a pass nor a failure, and the
+/// difference matters: reporting it as a pass is how a suite that checks nothing comes
+/// to look green. The reason is written to standard error, where a test runner shows it,
+/// rather than asserted, because there is nothing to assert.
+///
+/// The suppression is the reason `allow_attributes_without_reason` is denied
+/// workspace-wide. `print_stderr` exists so that the runner cannot write alongside its
+/// own structured output, and this is not the runner: it is a test reporting why it
+/// stood down.
+#[allow(
+    clippy::print_stderr,
+    reason = "a test that stands down has to say so in the test runner's output, and it is \
+              not the CLI's structured output that the lint protects"
+)]
+pub fn report_skip(what: &str) {
+    eprintln!("{what}");
+}
+
 /// Runs the fixture profile against a target named as `--contract` would name it.
 ///
 /// `network` is required for a deployed contract and ignored otherwise. Returned rather

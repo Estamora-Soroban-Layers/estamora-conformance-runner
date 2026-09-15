@@ -41,6 +41,17 @@ fn target() -> Option<(String, String)> {
 }
 
 /// Skips, loudly, when the environment does not name a contract.
+///
+/// The suppression is stated rather than left to chance: `print_stderr` is denied
+/// workspace-wide so that the runner cannot write alongside its own structured output,
+/// and a test reporting why it stood down is not that. It is written out even though the
+/// lint does not currently look inside a macro body, because passing by accident is not
+/// the same as passing.
+#[allow(
+    clippy::print_stderr,
+    reason = "a test that stands down has to say so in the test runner's output, and it is \
+              not the CLI's structured output that the lint protects"
+)]
 macro_rules! target_or_skip {
     () => {
         match target() {

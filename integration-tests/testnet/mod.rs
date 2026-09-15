@@ -61,9 +61,9 @@ fn testnet_enabled() -> bool {
 macro_rules! require_testnet {
     () => {
         if !testnet_enabled() {
-            eprintln!(
+            harness::report_skip(
                 "ESTAMORA_TESTNET_ENABLED is not 1; this test reads a live ledger and did \
-                 nothing. Run scripts/test-testnet.sh, or set ESTAMORA_TESTNET_ENABLED=1."
+                 nothing. Run scripts/test-testnet.sh, or set ESTAMORA_TESTNET_ENABLED=1.",
             );
             return;
         }
@@ -141,10 +141,10 @@ fn a_deployment_is_measured_and_the_report_names_the_deployment_it_was_reached_a
     // decision somebody made. Skipped loudly when nothing is named, so that a run of the
     // ignored set either measures something or says why it could not.
     let Ok(contract) = std::env::var("ESTAMORA_TESTNET_CONTRACT") else {
-        eprintln!(
+        harness::report_skip(
             "ESTAMORA_TESTNET_CONTRACT does not name a deployed contract; nothing was \
              measured. A verdict without its target is not re-verifiable, which is the \
-             property this test exists to assert."
+             property this test exists to assert.",
         );
         return;
     };
