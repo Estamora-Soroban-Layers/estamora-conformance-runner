@@ -34,13 +34,13 @@ aspirational. What exists and is tested today:
 | --- | --- |
 | `estamora-core` | **Implemented.** The error taxonomy, the six conformance statuses, the rule that reduces vector results to a verdict, and the exit-code contract. |
 | `estamora-soroban` | **Implemented for local execution.** A deterministic host pinned to a declared ledger point, contract registration from WebAssembly or an in-repository fixture, invocation with outcome classification, event capture, and authorization as a scenario property with the demanded authorizations recorded. |
+| `estamora-profile` | **Implemented for the entry point and the method layer.** Loads a bundle, refuses a specification format it cannot execute, refuses a manifest entry that escapes the bundle or a document that is oversized, parses the profile and method documents strictly, and refuses a bundle stored under an identity other than the one it declares. |
 
 Nothing in the table below exists yet. It is the intended layout, listed so that the
 boundary between crates is reviewable before the code is written.
 
 | Crate | Responsibility |
 | --- | --- |
-| `estamora-profile` | Load, parse, validate and resolve a profile bundle |
 | `estamora-vectors` | Load and resolve the vector corpus |
 | `estamora-assertions` | Evaluate one profile requirement against one observation |
 | `estamora-report` | Render results as JSON, Markdown and JUnit |
@@ -61,6 +61,17 @@ every observation records whether that inspection happened.
 **A refused call leaves no observable trace.** Its events and its mutations are both
 rolled back. That is what makes "a refusal must emit nothing" and "a refusal must not
 mutate state" enforceable requirements rather than aspirations.
+
+### What `estamora-profile` does not yet check
+
+The authorization, event, behaviour, invariant and failure documents are currently
+checked for **existence only**. Their contents are not parsed, because a typed model for
+them does not exist yet. A profile that is semantically wrong in those documents is caught
+by the specification repository's own validation, not by this runner.
+
+That is a recorded gap rather than a decision, and it narrows as each document is
+modelled. It is written down here because a limitation that is only in the code is one
+that a reader of this file will not find.
 
 There is no CLI yet, so no command is documented here. Documenting a command that does not
 run would be worse than documenting none.
