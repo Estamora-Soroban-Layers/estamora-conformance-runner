@@ -29,6 +29,7 @@
 
 pub mod digest;
 pub mod receipt;
+pub mod signing;
 pub mod verification;
 
 pub use digest::{Digest, HEX_LENGTH, PREFIX};
@@ -36,10 +37,10 @@ pub use receipt::{
     Receipt, ReceiptCorpus, ReceiptProfile, ReceiptResult, ReceiptTarget, receipt_digest,
     report_digest,
 };
-pub use verification::{
-    ALGORITHM, Attribution, SignedReceipt, Verification, fingerprint, sign, signing_key_from_hex,
-    verify, verifying_key_from_base64,
+pub use signing::{
+    ALGORITHM, SignedReceipt, fingerprint, sign, signing_key_from_hex, verifying_key_from_base64,
 };
+pub use verification::{Attribution, Verification, verify};
 
 #[cfg(test)]
 mod tests;
