@@ -54,8 +54,30 @@ jobs:
       - name: Install nightly
         run: rustup toolchain install nightly --profile minimal
 
+      # `taiki-e/install-action@cargo-fuzz` was the previous spelling, and it installs
+      # nothing. That action publishes a tag per tool it supports, and `cargo-fuzz` is not
+      # one of them: `manifests/cargo-fuzz.json` does not exist at `v2` and `TOOLS.md` does
+      # not list it. The ref that name does resolve to is a *branch*, whose `tool` input is
+      # `required: true` with its default left as the unsubstituted
+      # `# default: #publish:tool` template. So the step logged "no tool specified",
+      # succeeded having installed nothing, and all four matrix legs died on
+      # `error: no such command: 'fuzz'` before a single input was tried.
+      #
+      # `cargo install` is what `fuzz/README.md` already tells a contributor to run, so CI
+      # stays on the documented path rather than on a convenience that silently no-ops.
+      # `--locked` pins cargo-fuzz's own dependency tree, because a fuzzer that is a
+      # different program between two runs is a different experiment.
       - name: Install cargo-fuzz
-        uses: taiki-e/install-action@cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+
+      # The failure being fixed was a step that reported success while installing nothing,
+      # so presence is asserted here instead of being assumed by the step below — which is
+      # minutes away and reports the absence only as `no such command: 'fuzz'`. `fuzz list`
+      # additionally proves the four targets are discoverable from this directory.
+      - name: Check cargo-fuzz is usable
+        run: |
+          cargo fuzz --version
+          cargo +nightly fuzz list
 
       - name: Cache the corpus
         uses: actions/cache@v4
