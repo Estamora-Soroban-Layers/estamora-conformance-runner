@@ -30,8 +30,19 @@ pub const RUNNER_NAME: &str = "estamora";
 /// The default location of the specification checkout.
 ///
 /// `estamora-conformance-spec`, as a sibling of this repository. Used only when
-/// [`DEFAULT_SPEC_ROOT_ENV`] is unset.
+/// [`DEFAULT_SPEC_ROOT_ENV`] is unset, and only when the runner is being driven from
+/// a checkout of the runner: a binary installed from a release archive is not a
+/// sibling of anything, so this is the case an installed runner misses.
 pub const DEFAULT_SPEC_RELATIVE: &str = "../estamora-conformance-spec";
+
+/// Where the specification repository is published.
+///
+/// Named here because the error below is the first thing an installed runner prints,
+/// and a message that says a directory is missing without saying where to get it
+/// leaves the reader to search for the repository that defines the thing they are
+/// trying to measure.
+pub const SPEC_REPOSITORY_URL: &str =
+    "https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec";
 
 /// The runner's own version.
 ///
@@ -61,30 +72,53 @@ pub fn runner_identity() -> RunnerIdentity {
 /// silently measuring a different checkout than the one the caller named is how a
 /// result gets attributed to requirements that were never read.
 pub fn spec_root() -> estamora_core::Result<PathBuf> {
-    let configured = std::env::var_os(DEFAULT_SPEC_ROOT_ENV);
+    spec_root_from(
+        std::env::var_os(DEFAULT_SPEC_ROOT_ENV).as_deref(),
+        Path::new(DEFAULT_SPEC_RELATIVE),
+    )
+}
+
+/// The decision [`spec_root`] makes, with the environment and the default passed in.
+///
+/// Split out so the message can be asserted on. Reading the variable inside the
+/// function under test would make the test mutate process-wide state, which is both
+/// racy against every other test in this binary and, in CI, already set — so the one
+/// message an installed runner prints first would be the one message no test could
+/// reach.
+fn spec_root_from(
+    configured: Option<&std::ffi::OsStr>,
+    default: &Path,
+) -> estamora_core::Result<PathBuf> {
     let candidate = match &configured {
         Some(value) => PathBuf::from(value),
-        None => PathBuf::from(DEFAULT_SPEC_RELATIVE),
+        None => default.to_path_buf(),
     };
     if candidate.is_dir() {
         return Ok(candidate);
     }
-    let (what, reason) = if configured.is_some() {
-        (
-            format!("{DEFAULT_SPEC_ROOT_ENV} names"),
-            "it is not a directory",
+    // Both messages end with the same remedy, because the reader's next action is the
+    // same in both cases: put a checkout somewhere and name it. A release archive is
+    // installed on its own, so the sibling default cannot be satisfied by having
+    // installed the runner -- which is exactly when this message is reached.
+    let message = if configured.is_some() {
+        format!(
+            "{DEFAULT_SPEC_ROOT_ENV} names `{}`, which is not a directory. Clone the \
+             specification and point at it: git clone {SPEC_REPOSITORY_URL}",
+            candidate.display()
         )
     } else {
-        (
-            format!("the default specification checkout is {DEFAULT_SPEC_RELATIVE} and"),
-            "there is no such directory; set ESTAMORA_SPEC_REPO to a checkout of estamora-conformance-spec",
+        format!(
+            "no specification checkout was found. The default is `{}`, which is not there, \
+             and it can only be there when running from a checkout of this repository. \
+             Point at one with --spec or {DEFAULT_SPEC_ROOT_ENV}, or clone it now: \
+             git clone {SPEC_REPOSITORY_URL}",
+            default.display()
         )
     };
-    Err(estamora_core::Error::new(
-        estamora_core::ErrorClass::ProfileError,
-        format!("{what} `{}`, and {reason}", candidate.display()),
+    Err(
+        estamora_core::Error::new(estamora_core::ErrorClass::ProfileError, message)
+            .with_context("path", candidate.display().to_string()),
     )
-    .with_context("path", candidate.display().to_string()))
 }
 
 /// Everything one run needs.
@@ -280,8 +314,75 @@ pub fn looks_like_a_bundle(path: impl AsRef<Path>) -> bool {
     reason = "tests may panic; a failing test is the signal"
 )]
 mod tests {
-    use super::{RunConfig, looks_like_a_bundle, runner_identity};
+    use super::{RunConfig, looks_like_a_bundle, runner_identity, spec_root_from};
     use crate::engine::Target;
+
+    #[test]
+    fn a_missing_specification_checkout_says_how_to_get_one() {
+        // This is the first thing an installed runner prints: a binary from a release
+        // archive is a sibling of nothing, so the default cannot be satisfied by
+        // having installed it. A message that only said a directory was missing would
+        // leave the reader hunting for the repository that defines the requirements
+        // they are trying to measure, so the remedy is part of the contract.
+        let absent = tempfile::tempdir().unwrap();
+        let default = absent.path().join("estamora-conformance-spec");
+
+        let problem = spec_root_from(None, &default).unwrap_err();
+        assert_eq!(problem.class(), estamora_core::ErrorClass::ProfileError);
+        assert!(
+            problem.message().contains(&default.display().to_string()),
+            "the failure must name the default it tried: {}",
+            problem.message()
+        );
+        assert!(
+            problem.message().contains(super::SPEC_REPOSITORY_URL),
+            "the failure must say where to clone it from: {}",
+            problem.message()
+        );
+        assert!(
+            problem.message().contains("ESTAMORA_SPEC_REPO")
+                && problem.message().contains("--spec"),
+            "the failure must name both ways to point at a checkout: {}",
+            problem.message()
+        );
+    }
+
+    #[test]
+    fn a_configured_checkout_that_is_not_there_is_named_with_the_clone_command() {
+        let absent = tempfile::tempdir().unwrap();
+        let named = absent.path().join("somewhere-else");
+
+        let problem = spec_root_from(Some(named.as_os_str()), absent.path()).unwrap_err();
+        assert_eq!(problem.class(), estamora_core::ErrorClass::ProfileError);
+        assert!(
+            problem.message().contains(&named.display().to_string()),
+            "the failure must name what the variable held: {}",
+            problem.message()
+        );
+        assert!(
+            problem.message().contains(super::SPEC_REPOSITORY_URL),
+            "the failure must say where to clone it from: {}",
+            problem.message()
+        );
+    }
+
+    #[test]
+    fn a_checkout_that_exists_is_returned_unchanged() {
+        let present = tempfile::tempdir().unwrap();
+        let configured = present.path().join("spec");
+        std::fs::create_dir_all(&configured).unwrap();
+
+        // Both routes are asserted, because the default is what a checkout of this
+        // repository relies on and the variable is what CI and every consumer sets.
+        assert_eq!(
+            spec_root_from(Some(configured.as_os_str()), present.path()).unwrap(),
+            configured
+        );
+        assert_eq!(
+            spec_root_from(None, present.path()).unwrap(),
+            present.path().to_path_buf()
+        );
+    }
 
     #[test]
     fn the_recorded_configuration_names_everything_that_could_change_a_verdict() {
