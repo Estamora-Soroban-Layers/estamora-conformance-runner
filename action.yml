@@ -1,0 +1,184 @@
+name: Estamora conformance
+description: >-
+  Measure a Soroban contract's behaviour against an Estamora conformance profile, write a
+  machine-readable report, and fail the job when the verdict is not CONFORMANT.
+
+  This action builds `estamora` from its own checkout and runs it. It does not download a
+  prebuilt binary, so the tool that produced the verdict is the revision that was pinned by
+  the `uses:` reference rather than whatever a release channel happened to point at.
+
+# The default output is `junit` because the common desire is for an existing CI gate to
+# read the result without anything new being installed.
+
+inputs:
+  contract:
+    description: >-
+      The contract to measure: `fixture:<name>` for the in-repository fixture set, a path
+      ending in `.wasm`, or a contract identifier (with `network`).
+    required: true
+  profile:
+    description: >-
+      The profile to measure against: an `id@version` reference resolved under `spec`, a
+      path under that checkout's `profiles/`, or a directory holding a `profile.yaml`.
+    required: true
+  spec:
+    description: >-
+      Path to a checkout of `estamora-conformance-spec`. Needed for an `id@version`
+      profile; can be left empty when `profile` is a path to a bundle.
+    required: false
+    default: ""
+  network:
+    description: >-
+      The network the contract is deployed to. Leave it as `local` for a `.wasm` artifact
+      or a fixture. For `testnet` or `mainnet` the deployed contract's WebAssembly is
+      resolved over RPC and then measured locally, so a verdict does not depend on a
+      funded account or on the state of a shared ledger.
+    required: false
+    default: "local"
+  format:
+    description: "Report rendering: `json`, `markdown`, `junit` or `text`."
+    required: false
+    default: "junit"
+  out:
+    description: "Where the report rendering is written. Empty writes it to the job log."
+    required: false
+    default: "estamora-report.junit.xml"
+  report:
+    description: >-
+      Where the normative JSON report is additionally written. Empty writes none, and
+      leaves the run with no document another tool can consume.
+    required: false
+    default: "estamora-report.json"
+  tags:
+    description: >-
+      Space-separated tags; only vectors carrying every one of them are run.
+    required: false
+    default: ""
+  extra-args:
+    description: >-
+      Extra arguments appended to `estamora run`, split on whitespace. For anything this
+      action does not name, such as `--receipt` or `--signing-key`.
+    required: false
+    default: ""
+  install:
+    description: >-
+      Whether to build and install `estamora` from this action's checkout. Set to `false`
+      when the workflow has already installed it, to avoid building it twice.
+    required: false
+    default: "true"
+
+outputs:
+  status:
+    description: >-
+      The conformance status the run reached: `CONFORMANT`, `PARTIALLY_CONFORMANT`,
+      `NON_CONFORMANT`, `INCONCLUSIVE`, `EXECUTION_ERROR` or `PROFILE_ERROR`. Empty when
+      no JSON report was written.
+    value: ${{ steps.run.outputs.status }}
+  exit-code:
+    description: >-
+      The status `estamora` exited with. `0` conformant, `1` a violated requirement, `2`
+      undecidable, `3` an unusable profile, `4` an environment failure, `5` an internal
+      failure, `64` a usage error. The action exits with the same code.
+    value: ${{ steps.run.outputs.exit-code }}
+  report:
+    description: "Path to the JSON report, when one was asked for."
+    value: ${{ steps.run.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    # The toolchain is pinned in the checkout's own `rust-toolchain.toml`, so nothing is
+    # installed here: `cargo` resolves the pinned channel, and installing a second one
+    # would make the binary's identity depend on this step rather than on the repository.
+    - name: Build the tool from the action's checkout
+      if: inputs.install == 'true'
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+        cargo install --locked --path "$ACTION_PATH/crates/estamora-cli"
+
+    # Every input reaches the shell through the environment rather than through
+    # `${{ }}` interpolation. A `contract` or a `tags` value is a string a caller
+    # controls, and interpolating it into a script body would let it end the quoting and
+    # run as shell. Quoting a variable is not a matter of style here.
+    - name: Measure the contract
+      id: run
+      shell: bash
+      env:
+        ESTAMORA_PROFILE: ${{ inputs.profile }}
+        ESTAMORA_CONTRACT: ${{ inputs.contract }}
+        ESTAMORA_SPEC: ${{ inputs.spec }}
+        ESTAMORA_NETWORK: ${{ inputs.network }}
+        ESTAMORA_FORMAT: ${{ inputs.format }}
+        ESTAMORA_OUT: ${{ inputs.out }}
+        ESTAMORA_REPORT: ${{ inputs.report }}
+        ESTAMORA_TAGS: ${{ inputs.tags }}
+        ESTAMORA_EXTRA_ARGS: ${{ inputs.extra-args }}
+      run: |
+        set -uo pipefail
+
+        args=(run --profile "$ESTAMORA_PROFILE" --contract "$ESTAMORA_CONTRACT")
+
+        [ -n "$ESTAMORA_SPEC" ] && args+=(--spec "$ESTAMORA_SPEC")
+        [ -n "$ESTAMORA_NETWORK" ] && args+=(--network "$ESTAMORA_NETWORK")
+        [ -n "$ESTAMORA_FORMAT" ] && args+=(--format "$ESTAMORA_FORMAT")
+        [ -n "$ESTAMORA_OUT" ] && args+=(--out "$ESTAMORA_OUT")
+        [ -n "$ESTAMORA_REPORT" ] && args+=(--report "$ESTAMORA_REPORT")
+        [ -n "$ESTAMORA_TAGS" ] && read -r -a tags <<< "$ESTAMORA_TAGS" \
+          && for tag in "${tags[@]}"; do args+=(--tag "$tag"); done
+        [ -n "$ESTAMORA_EXTRA_ARGS" ] && read -r -a extra <<< "$ESTAMORA_EXTRA_ARGS" \
+          && args+=("${extra[@]}")
+
+        echo "estamora ${args[*]}"
+
+        # The exit code is the verdict, and the step must end on the same one: `set -e`
+        # is off around the call so that a non-conformant run is reported rather than
+        # aborting the step before its outputs are set.
+        set +e
+        estamora "${args[@]}"
+        code=$?
+        set -e
+
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+
+        # The status is read out of the report the run wrote rather than inferred from
+        # the exit code. A status is not a synonym for an exit code — two of the six
+        # share exit `1` — and inventing a mapping here would be a second, quieter
+        # definition of the taxonomy this project publishes.
+        status=""
+        if [ -n "$ESTAMORA_REPORT" ] && [ -f "$ESTAMORA_REPORT" ]; then
+          status=$(python3 -c '
+        import json, sys
+        try:
+            print(json.load(open(sys.argv[1])).get("status", ""))
+        except Exception:
+            print("")
+        ' "$ESTAMORA_REPORT")
+        fi
+        echo "status=$status" >> "$GITHUB_OUTPUT"
+        echo "report=$ESTAMORA_REPORT" >> "$GITHUB_OUTPUT"
+
+        if [ -n "$status" ]; then
+          echo "estamora: $status (exit $code)"
+        else
+          echo "estamora: exit $code"
+        fi
+
+        exit "$code"
+
+    # A report is the artefact; the job log is not. Uploading it on failure as well as on
+    # success, because a run that found something is the one a reader needs the document
+    # from.
+    - name: Upload the report
+      if: always() && inputs.report != '' && steps.run.outputs.report != ''
+      uses: actions/upload-artifact@v7
+      with:
+        name: estamora-report
+        path: ${{ steps.run.outputs.report }}
+        if-no-files-found: warn
+
+branding:
+  icon: check-circle
+  color: purple
