@@ -31,9 +31,9 @@ $ ls target/wasm32v1-none/release/my_token.wasm
 `wasm32v1-none` is the current target for Soroban contracts. On older toolchains the
 same artifact comes from `wasm32-unknown-unknown`. `rust-toolchain.toml` in this
 repository pins `wasm32v1-none`, so that a checkout can build a contract for these
-examples without adding the target yourself. The runner's own crates and its fixture
-contracts are never built for it: a fixture is registered from its Rust type, which is
-explained under *The local host is not a mock*.
+examples without adding the target yourself. Nothing in the runner's own workspace is
+built for it — a fixture is registered from its Rust type, which is explained under
+*The local host is not a mock* — but one fixture is: see *A compiled fixture* below.
 
 The runner reads the contract's interface from the artifact's `contractspecv0`
 section **before** deploying it. An artifact that publishes no spec section is
@@ -62,11 +62,20 @@ diagnostic naming the reason:
       and this vector contributes nothing to the verdict
 ```
 
-A skipped vector is not a pass and not a failure. A run in which any required vector
-was skipped reaches `INCONCLUSIVE` and exits `2`, because a requirement that was not
-exercised cannot be reported as satisfied. The alternative — measuring the contract
-against a world it was never put into — would produce a verdict that looks exactly
-like a real one and is not one.
+A skipped vector is not a pass and not a failure, and what the run concludes depends on
+whether anything else was decided:
+
+| What was decided | Status | Exit |
+| --- | --- | --- |
+| Some vectors decided, at least one required vector skipped | `INCONCLUSIVE` | `2` |
+| Nothing decided at all | `EXECUTION_ERROR` | `4` |
+
+The second row is the ordinary result of measuring a deployed artifact: no state can be
+established in one, so no vector can be decided, and the honest answer is not a
+conformance result but an environment failure. What a run must never do is report
+`CONFORMANT` because the vectors it could not prepare simply did not fail. The
+alternative — measuring the contract against a world it was never put into — would
+produce a verdict that looks exactly like a real one and is not one.
 
 This is a real limitation and it is worth stating plainly: **against an arbitrary
 `.wasm`, Estamora can measure the vectors whose starting world needs no opening
@@ -153,6 +162,21 @@ source:
   the spec section before anything else, so a call that later aborts can be
   attributed to the contract rather than to a mis-typed invocation. The interface is
   read first, and the invocation is typed against what was read.
+
+## A compiled fixture
+
+The suite measures one contract as a **compiled artifact** as well as from its Rust type:
+`fixtures/contracts/measurable-token` declares its own workspace so that it can be built
+for WebAssembly, and `scripts/build-fixture-wasm.sh` produces the artifact under
+`fixtures/wasm/` that the tests deploy. That artifact is committed, so measuring it needs
+no build step, and CI rebuilds it and fails if the committed copy differs.
+
+It exists because of what could not otherwise be tested. A registered Rust type has no
+`contractspecv0` section, so interface inspection reads a declared interface instead of a
+real one, and a `.wasm` target has no artifact at all. Measuring this one exercises both,
+and pins the two answers a run against a deployed contract has to get right: the digest a
+report records is the digest of the bytes, and a run that could not prepare a single
+scenario reports an environment failure rather than a verdict.
 
 ## A local run, end to end
 

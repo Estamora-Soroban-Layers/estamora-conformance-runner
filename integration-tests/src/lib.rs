@@ -67,6 +67,46 @@ pub fn fixture_profile_root() -> PathBuf {
     fixture_spec_root().join("profiles/conformance-token/1.0")
 }
 
+/// The compiled fixture contract, the one the `.wasm` target is measured against.
+///
+/// Committed rather than built by the test, so that the artifact target is covered by
+/// the default suite: a test that first had to compile a contract for WebAssembly would
+/// be slow, would need a target many machines lack, and would not run at all on a
+/// checkout that is only being read. `scripts/build-fixture-wasm.sh` produces it and CI
+/// rebuilds it and fails if the committed copy differs.
+///
+/// # Panics
+///
+/// Aborts when the artifact is not there. That is a defect in this repository — the file
+/// is tracked — rather than a result about any contract, and a test that quietly skipped
+/// would report the artifact target as covered when nothing had measured it.
+#[must_use]
+pub fn fixture_wasm_path() -> PathBuf {
+    let path = repo_root().join("fixtures/wasm/measurable-token.wasm");
+    assert!(
+        path.is_file(),
+        "the compiled fixture artifact is missing at {}; run scripts/build-fixture-wasm.sh",
+        path.display()
+    );
+    path
+}
+
+/// Runs the fixture profile against the compiled fixture artifact.
+///
+/// # Panics
+///
+/// Aborts when the artifact cannot be named as a target or the run cannot be attempted.
+#[must_use]
+pub fn run_artifact() -> RunOutcome {
+    let contract = fixture_wasm_path();
+    let contract = contract
+        .to_str()
+        .unwrap_or_else(|| panic!("{} is not a UTF-8 path", contract.display()));
+    run_target(contract, None).unwrap_or_else(|problem| {
+        panic!("the compiled fixture artifact could not be measured: {problem}")
+    })
+}
+
 /// Runs the fixture profile against one of the in-repository fixtures.
 ///
 /// # Panics

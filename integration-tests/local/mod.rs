@@ -13,6 +13,7 @@
 
 use estamora_core::{ConformanceStatus, Error, ErrorClass, ExitCode};
 use estamora_integration_tests as harness;
+use sha2::Digest as _;
 
 /// The exit code a failed run produces, as the binary would.
 fn error_exit_code(problem: &Error) -> ExitCode {
@@ -338,4 +339,114 @@ fn the_sep_41_profile_is_conformant_against_the_fixture_when_the_specification_i
         harness::failures(&outcome)
     );
     assert_eq!(harness::status(&outcome), ConformanceStatus::Conformant);
+}
+
+#[test]
+fn a_compiled_artifact_is_deployed_and_read_from_its_own_spec_section() {
+    // The `.wasm` target is the one a user meets first — it is what
+    // `examples/local-contract` and `docs/local-testing.md` walk through — and until
+    // there was an artifact to measure it with, nothing exercised it: the in-repository
+    // fixtures are registered from their Rust types, so deploying real bytes and reading
+    // an interface out of a real `contractspecv0` section were both untested.
+    //
+    // Inspection is what is asserted rather than a per-dimension tally, because a tally
+    // belongs to a vector and no vector against an artifact can be decided. What this
+    // establishes is the weaker, checkable half: the artifact deploys, and the methods
+    // below were read out of its own bytes rather than out of a declaration beside them.
+    let target =
+        estamora_cli::engine::Target::parse(harness::fixture_wasm_path().to_str().unwrap(), None)
+            .unwrap();
+    let config = estamora_cli::RunConfig::new(
+        harness::fixture_profile_root(),
+        harness::fixture_spec_root(),
+        target,
+    );
+    let inspection = estamora_cli::engine::inspect(&config).expect("a built artifact must deploy");
+
+    assert_eq!(inspection.network, "local");
+    assert!(
+        inspection.wasm_hash.is_some(),
+        "a deployed artifact has a hash, which is what pins a result to a compilation"
+    );
+    for method in [
+        "allowance",
+        "approve",
+        "balance",
+        "burn",
+        "burn_from",
+        "decimals",
+        "name",
+        "symbol",
+        "transfer",
+        "transfer_from",
+    ] {
+        assert!(
+            inspection.interface.declares(method),
+            "`{method}` was not read out of the artifact; the interface found was {} ({})",
+            inspection.interface.methods.len(),
+            inspection.interface.source
+        );
+    }
+}
+
+#[test]
+fn the_digest_a_report_records_for_an_artifact_is_the_digest_of_its_bytes() {
+    // The hash is what ties a result to the exact compilation it was reached from, so it
+    // is computed here from the file rather than taken from the report. A digest of
+    // something else — the path, the deployment's address, a cached value — would still
+    // look like a digest and would pin nothing.
+    let outcome = harness::run_artifact();
+    let recorded = harness::report(&outcome)
+        .target
+        .wasm_hash
+        .clone()
+        .expect("a deployed artifact has a hash");
+
+    let bytes = std::fs::read(harness::fixture_wasm_path()).unwrap();
+    let computed = format!("sha256:{}", hex::encode(sha2::Sha256::digest(&bytes)));
+
+    assert_eq!(recorded, computed);
+}
+
+#[test]
+fn an_artifact_whose_world_cannot_be_seeded_produces_no_verdict() {
+    // No state can be put into a deployed artifact, so every vector is skipped and
+    // nothing is decided. That is an environment failure and exits `4`, which is the
+    // classification that matters most here: a run that could not prepare a single
+    // scenario must not report a contract as non-conformant, and it must not report it
+    // as conformant either. The failure mode this guards against is a suite whose
+    // vectors all fail to run and which therefore finds nothing wrong.
+    let outcome = harness::run_artifact();
+    let report = harness::report(&outcome);
+
+    assert_eq!(harness::status(&outcome), ConformanceStatus::ExecutionError);
+    assert_ne!(harness::status(&outcome), ConformanceStatus::Conformant);
+    assert_ne!(
+        harness::status(&outcome),
+        ConformanceStatus::NonConformant,
+        "an environment that could not prepare a scenario is not a contract that failed"
+    );
+    assert_eq!(
+        harness::status(&outcome).exit_code(),
+        ExitCode::EnvironmentFailed
+    );
+    assert_eq!(report.vectors.count, 4);
+
+    for vector in &outcome.outcomes {
+        assert_eq!(
+            vector.status,
+            estamora_core::VectorStatus::Skipped,
+            "`{}` was decided against an artifact whose state was never established",
+            vector.vector_id
+        );
+        assert!(
+            vector
+                .diagnostics
+                .iter()
+                .any(|finding| finding.code == "seeding-unavailable"),
+            "`{}` was skipped without saying why: {:#?}",
+            vector.vector_id,
+            vector.diagnostics
+        );
+    }
 }

@@ -87,6 +87,30 @@ else
     fi
 fi
 
+# The fixture contract that is compiled for WebAssembly has its own workspace — outside
+# the runner's, on purpose — so none of the checks above reaches it. It is checked here
+# for the same reason it is checked in CI: a contract nobody compiled is a contract
+# nobody has verified, and the artifact the end-to-end suite measures comes from it.
+run "the compiled fixture contract: formatting" \
+    cargo fmt --manifest-path fixtures/contracts/measurable-token/Cargo.toml -- --check
+
+run "the compiled fixture contract: lints" \
+    cargo clippy --manifest-path fixtures/contracts/measurable-token/Cargo.toml \
+    --all-targets -- -D warnings
+
+run "the compiled fixture contract: tests" \
+    cargo test --manifest-path fixtures/contracts/measurable-token/Cargo.toml
+
+# And the committed artifact is rebuilt, because a committed binary whose source has moved
+# on passes every test while measuring a compilation the checkout no longer describes.
+step "the committed fixture artifact is current"
+if ./scripts/build-fixture-wasm.sh >/dev/null \
+    && git diff --quiet -- fixtures/wasm fixtures/contracts/measurable-token/Cargo.lock; then
+    printf 'the artifact matches the source beside it\n'
+else
+    fail "fixtures/wasm is stale; run ./scripts/build-fixture-wasm.sh and commit the result"
+fi
+
 run "release checks" \
     ./scripts/release.sh --check
 

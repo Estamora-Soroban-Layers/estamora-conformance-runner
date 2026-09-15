@@ -6,10 +6,11 @@
 [toolchain]
 channel = "1.98.1"
 components = ["rustfmt", "clippy"]
-# Nothing in this workspace is built for WebAssembly: the fixture contracts are
-# registered from their Rust types and the runner is a host program. The target is
-# pinned anyway, so that measuring your own contract — the case
-# `docs/local-testing.md` and `examples/local-contract/` walk through — does not
-# start with adding a target and working out which one is current.
+# The runner's own crates are host programs and its fixture contracts are registered
+# from their Rust types, so nothing in *this* workspace is built for WebAssembly. Two
+# things are: `fixtures/contracts/measurable-token`, which declares its own workspace so
+# that it can be, and the contract a reader brings to `docs/local-testing.md`. Both are
+# built for this target, which is why it is pinned — measuring your own contract should
+# not start with adding a target and working out which one is current.
 targets = ["wasm32v1-none"]
 profile = "minimal"

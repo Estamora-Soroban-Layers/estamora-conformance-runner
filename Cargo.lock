@@ -1198,7 +1198,9 @@ dependencies = [
  "estamora-core",
  "estamora-report",
  "estamora-vectors",
+ "hex",
  "serde_json",
+ "sha2",
  "tempfile",
 ]
 

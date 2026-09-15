@@ -7,8 +7,9 @@ name: Integration
 # Every test here drives the library the way a user drives the CLI — it builds a
 # `RunConfig`, calls `run`, and reads the report — so a change that breaks the seam
 # between the CLI and the engine fails here and nowhere else. Nothing in this workflow
-# touches a network: the fixtures are contracts in the workspace, compiled to real Wasm
-# and executed in a real Soroban host with time and authorization fixed by each vector.
+# touches a network: the fixtures are contracts in the workspace, registered into a real
+# Soroban host from their Rust types, with time and authorization fixed by each vector,
+# and one of them is also measured as a compiled artifact.
 
 on:
   push:
@@ -177,15 +178,43 @@ jobs:
             esac
           done
 
-# There is deliberately no job that builds the fixture contracts for `wasm32v1-none`.
-#
-# The fixtures are measured as Rust types: the SDK registers a contract from a type, so
-# the test suite and every example deploy one without an artifact. Building them for the
-# contract target would need the `testutils` feature off the wasm build and on the host
-# build, split per target in the fixture manifest, and the artifact would then exist only
-# to be measured through a code path — the `.wasm` target — that already has its own
-# tests. A job that builds an artifact nothing consumes is a job that goes red for
-# reasons nobody investigates, which is worse than not having it.
-#
-# What the `.wasm` path needs instead is a real artifact from a real contract, and that
-# is what `examples/local-contract/` is for.
+  artifact:
+    name: the compiled fixture artifact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      # The artifact target is measured by the end-to-end suite against a compiled
+      # contract, and that artifact is committed so the suite needs no build step. This
+      # job is what keeps the committed copy honest: it rebuilds it from the source
+      # beside it and fails if the result differs.
+      #
+      # Rebuilding rather than trusting is the whole point. A committed binary whose
+      # source has moved on is an artifact no one can vouch for, and the failure it would
+      # otherwise cause is silent: the tests keep passing, measuring a compilation that
+      # the checkout no longer describes.
+      - name: Build the contract for the contract target
+        run: ./scripts/build-fixture-wasm.sh
+
+      - name: The committed artifact is the one this source produces
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed=$(git status --porcelain -- fixtures/wasm fixtures/contracts/measurable-token/Cargo.lock)
+          if [ -n "$changed" ]; then
+            echo "the committed artifact or the contract's lock file is stale:"
+            echo "$changed"
+            echo
+            echo "run ./scripts/build-fixture-wasm.sh and commit the result"
+            exit 1
+          fi
+
+      # And the artifact is measured here as well as in the end-to-end job, so that a
+      # failure to deploy a real compilation names itself rather than arriving as one
+      # failure among twenty.
+      - name: Measure the compiled artifact
+        run: cargo test --locked -p estamora-integration-tests --test local artifact
+

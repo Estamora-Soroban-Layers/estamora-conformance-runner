@@ -7,10 +7,11 @@
 # the seam between the CLI and the engine has to fail these tests, and a test that
 # lived inside the crate could be written to pass through the seam instead of over it.
 #
-# Every test here runs against `fixtures/`, the in-repository profile and the
-# in-repository fixture contracts, so the suite has no external dependency and runs on
-# a checkout that has never seen `estamora-conformance-spec`. The tests that measure
-# the real specification are in the crates themselves and are skipped without it.
+# Every test here runs against `fixtures/`, the in-repository profile, the in-repository
+# fixture contracts and the compiled artifact beside them, so the suite has no external
+# dependency and runs on a checkout that has never seen `estamora-conformance-spec`. The
+# tests that measure the real specification are in the crates themselves and are skipped
+# without it.
 [package]
 name = "estamora-integration-tests"
 description = "End-to-end conformance runs against the in-repository fixtures."
@@ -37,6 +38,11 @@ estamora-report = { workspace = true }
 estamora-vectors = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
+# The artifact tests compute the digest of the compiled fixture themselves, rather than
+# reading it out of the runner, so that the value the report records is checked against
+# an independent calculation of the same thing.
+sha2 = { workspace = true }
+hex = { workspace = true }
 
 # One target per conformance dimension, so that a failure names the dimension it is
 # about without a reader having to read the test body.
