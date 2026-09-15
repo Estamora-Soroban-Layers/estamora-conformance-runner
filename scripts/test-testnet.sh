@@ -12,9 +12,12 @@
 #   * a test that needs a funded account must not be a prerequisite for checking a
 #     rule about event cardinality.
 #
-# This build links no RPC transport, so nothing here will actually reach a network
-# today. The script is written so that it says that rather than passing quietly: a
-# suite that reports success because it ran nothing is worse than one that fails.
+# Reaching a network is opt-in behind ESTAMORA_TESTNET_ENABLED, and the tests themselves
+# check it as well as this script. That is not redundancy: `cargo test --workspace --
+# --ignored` is what CI runs to reach the cross-repository tests, so a test that was only
+# `#[ignore]`d would read a public node on every push. A test set that either measured
+# something or said why it could not is the point, and a suite that reports success because
+# it ran nothing is worse than one that fails.
 
 set -euo pipefail
 

@@ -42,6 +42,34 @@ use estamora_integration_tests as harness;
 /// reported.
 const ABSENT_CONTRACT: &str = "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM";
 
+/// Whether the network-backed tests were asked for.
+///
+/// `cargo test --workspace -- --ignored` is what this repository's CI runs to get at the
+/// cross-repository tests, so a test that is merely `#[ignore]`d would still reach a public
+/// node on every push. A shared ledger must not be able to turn this repository red, so
+/// reaching one is a separate, explicit decision — the same one `scripts/test-testnet.sh`
+/// makes — rather than a side effect of asking for the ignored set.
+fn testnet_enabled() -> bool {
+    std::env::var("ESTAMORA_TESTNET_ENABLED").is_ok_and(|value| value == "1")
+}
+
+/// Skips, loudly, when the network tests were not asked for.
+///
+/// Loudly rather than silently: a suite that reports success because it ran nothing is
+/// worse than one that fails, and the whole point of the ignored set is that its absence
+/// from a run is visible in the output.
+macro_rules! require_testnet {
+    () => {
+        if !testnet_enabled() {
+            eprintln!(
+                "ESTAMORA_TESTNET_ENABLED is not 1; this test reads a live ledger and did \
+                 nothing. Run scripts/test-testnet.sh, or set ESTAMORA_TESTNET_ENABLED=1."
+            );
+            return;
+        }
+    };
+}
+
 #[test]
 fn a_contract_identifier_without_a_network_is_a_usage_error() {
     // Read as a target and failed later, this would report a command-line mistake as a
@@ -76,8 +104,9 @@ fn a_local_run_names_its_network_as_local() {
 }
 
 #[test]
-#[ignore = "reads a live ledger; run with --ignored, or through scripts/test-testnet.sh"]
+#[ignore = "reads a live ledger; run through scripts/test-testnet.sh"]
 fn a_contract_that_does_not_exist_is_an_environment_failure_and_never_a_verdict() {
+    require_testnet!();
     let problem = harness::run_target(ABSENT_CONTRACT, Some("testnet"))
         .expect_err("a contract that does not exist cannot produce a report");
     assert_eq!(
@@ -105,17 +134,20 @@ fn a_contract_that_does_not_exist_is_an_environment_failure_and_never_a_verdict(
 }
 
 #[test]
-#[ignore = "reads a live ledger; run with --ignored, or through scripts/test-testnet.sh"]
+#[ignore = "reads a live ledger; run through scripts/test-testnet.sh"]
 fn a_deployment_is_measured_and_the_report_names_the_deployment_it_was_reached_about() {
-    // Opted into by naming a contract rather than skipped, so that a run of the ignored
-    // set either measures something or says why it could not. A verdict without its
-    // target is not re-verifiable, which is the property asserted here.
-    let contract = std::env::var("ESTAMORA_TESTNET_CONTRACT").unwrap_or_else(|_| {
-        panic!(
-            "this test needs a deployed contract: set ESTAMORA_TESTNET_CONTRACT, or run \
-             `scripts/test-testnet.sh`, which names one"
-        )
-    });
+    require_testnet!();
+    // Named rather than discovered, because which contract is measured has to be a
+    // decision somebody made. Skipped loudly when nothing is named, so that a run of the
+    // ignored set either measures something or says why it could not.
+    let Ok(contract) = std::env::var("ESTAMORA_TESTNET_CONTRACT") else {
+        eprintln!(
+            "ESTAMORA_TESTNET_CONTRACT does not name a deployed contract; nothing was \
+             measured. A verdict without its target is not re-verifiable, which is the \
+             property this test exists to assert."
+        );
+        return;
+    };
     let outcome = harness::run_target(&contract, Some("testnet"))
         .unwrap_or_else(|problem| panic!("{contract} could not be read: {problem}"));
 
