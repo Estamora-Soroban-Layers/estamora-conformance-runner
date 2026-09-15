@@ -15,6 +15,10 @@
 //! 3. **What a requirement is written in** ([`expr`]). The expression algebra
 //!    shared by profile documents and vectors, chosen so that a requirement is
 //!    always data to be evaluated rather than code to be run.
+//! 4. **What an observation is** ([`value`] and [`world`]). The vocabulary the
+//!    evaluator and the execution layer must agree on, so that the evaluator never
+//!    learns what a ledger is and the execution layer never learns what a
+//!    requirement is.
 //!
 //! Nothing here knows about Soroban, about files, or about the network. That is
 //! deliberate: these are the types a test can pin exhaustively, so the semantics
@@ -25,6 +29,8 @@
 pub mod errors;
 pub mod expr;
 pub mod outcomes;
+pub mod value;
+pub mod world;
 
 pub use errors::{
     Blame, Diagnostic, Diagnostics, Error, ErrorClass, Result, Severity, into_result,
