@@ -2,7 +2,7 @@
 //!
 //! A CI system reads one thing from this program: the number it exits with. So the
 //! mapping from a failure to a status is written once, here, and is derived from the
-//! failure's [`ErrorClass`] rather than assembled at each `return`. The rule it
+//! failure's [`estamora_core::ErrorClass`] rather than assembled at each `return`. The rule it
 //! enforces is the reason the taxonomy exists at all:
 //!
 //! | Status | Exit | Meaning |
