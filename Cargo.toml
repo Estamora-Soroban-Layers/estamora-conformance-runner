@@ -24,6 +24,7 @@ members = [
   "crates/estamora-soroban",
   "crates/estamora-assertions",
   "crates/estamora-report",
+  "crates/estamora-certification",
 ]
 
 [workspace.package]

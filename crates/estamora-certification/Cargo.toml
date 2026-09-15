@@ -1,0 +1,32 @@
+[package]
+name = "estamora-certification"
+description = "Digests, receipts and receipt verification for an Estamora conformance run."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+# The receipt's signature is over a digest of the report, and the report's identity
+# is its canonical JSON. Both are content, not encryption: signing a receipt records
+# who asserted a result, and nothing here claims confidentiality or that a signed
+# result is correct.
+[dependencies]
+estamora-core = { path = "../estamora-core" }
+estamora-report = { path = "../estamora-report" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+ed25519-dalek = { workspace = true }
+base64 = { workspace = true }
+
+[dev-dependencies]
+time = { workspace = true }

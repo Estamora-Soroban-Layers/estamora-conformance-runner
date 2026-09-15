@@ -244,6 +244,20 @@ impl Error {
         &self.context
     }
 
+    /// One context value, by key.
+    ///
+    /// The accessor a caller uses when it has to branch on *why* a failure of a
+    /// class happened — distinguishing a receipt whose signature did not check out
+    /// from one whose report was swapped — without matching on prose, which would
+    /// break the moment a message was reworded.
+    #[must_use]
+    pub fn context_value(&self, key: &str) -> Option<&str> {
+        self.context
+            .iter()
+            .find(|(name, _)| name == key)
+            .map(|(_, value)| value.as_str())
+    }
+
     /// The message with its context rendered as a suffix, for a log line or a
     /// terminal report.
     ///

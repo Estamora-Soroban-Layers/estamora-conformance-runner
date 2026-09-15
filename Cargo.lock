@@ -895,6 +895,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "estamora-certification"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "ed25519-dalek",
+ "estamora-core",
+ "estamora-report",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "time",
+]
+
+[[package]]
 name = "estamora-core"
 version = "0.1.0"
 dependencies = [
