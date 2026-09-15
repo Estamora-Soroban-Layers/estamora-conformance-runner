@@ -172,6 +172,24 @@ jobs:
         shell: bash
         run: cargo build --locked --release --target ${{ matrix.target }} -p estamora-cli
 
+      # The archive the release attaches is the archive that ran, and `--version` is not
+      # enough to establish that: it exercises argument parsing and nothing else. Every
+      # binary this project released before this step existed passed `--version` and died
+      # with SIGABRT on a real measurement, because `[profile.release]` set
+      # `panic = "abort"` and the Soroban host's test utilities catch the panic a fixture
+      # contract raises by unwinding. The step below runs the quickstart's measurement with
+      # the exact file that is about to be packed, so a binary that cannot produce a
+      # verdict cannot be attached to a release.
+      - name: Measure the reference fixture with the binary that will be attached
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="target/${{ matrix.target }}/release/estamora"
+          if [ -f "$binary.exe" ]; then
+            binary="$binary.exe"
+          fi
+          "$binary" run --spec fixtures --profile conformance-token@1.0 --contract fixture:none
+
       # One archive format for every platform. Windows ships `bsdtar` and Windows 10
       # onward extracts a `.tar.gz` without anything installed, so a second format
       # would be a second thing to keep right for no gain.

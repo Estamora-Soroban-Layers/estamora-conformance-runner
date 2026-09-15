@@ -152,17 +152,33 @@ jobs:
       - name: Cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Build the binary
-        run: cargo build --locked -p estamora-cli
+      # The profile this builds is the profile that ships, and that is the whole point of
+      # this job. A panic strategy is not a performance setting: `[profile.release]`
+      # carried `panic = "abort"`, the Soroban host's test utilities catch the panic a
+      # fixture contract raises by unwinding, and under `abort` there is nothing to catch —
+      # so every released binary died with SIGABRT and no output on the path the quickstart
+      # uses, while this job and every other assertion in the repository passed, because
+      # all of them built a debug binary. Asserting the contract on a debug build is
+      # asserting a different program.
+      - name: Build the binary in the profile that ships
+        run: cargo build --locked --release -p estamora-cli
 
       # CI's contract with this tool is its exit codes, so they are asserted as exit
       # codes and not only as library return values. A wrapper script cannot tell the
       # difference between a broken profile and a broken contract unless these hold.
+      #
+      # The measurement is printed rather than discarded, because the failure this job
+      # exists to catch produced no output at all.
+      - name: A conformant contract exits 0
+        run: |
+          ./target/release/estamora run --spec fixtures --profile conformance-token@1.0 \
+            --contract fixture:none
+
       - name: A non-conformant contract exits 1
         shell: bash
         run: |
           set +e
-          ./target/debug/estamora run --spec fixtures --profile conformance-token@1.0 \
+          ./target/release/estamora run --spec fixtures --profile conformance-token@1.0 \
             --contract fixture:skips-authorization >/dev/null 2>&1
           code=$?
           set -e
@@ -172,7 +188,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          ./target/debug/estamora validate \
+          ./target/release/estamora validate \
             --profile fixtures/malformed-inputs/profile-missing-document >/dev/null 2>&1
           code=$?
           set -e
@@ -182,7 +198,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          ./target/debug/estamora report \
+          ./target/release/estamora report \
             --report fixtures/malformed-inputs/report-not-a-report.json >/dev/null 2>&1
           code=$?
           set -e
@@ -192,7 +208,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          ./target/debug/estamora run --spec fixtures --profile conformance-token@1.0 \
+          ./target/release/estamora run --spec fixtures --profile conformance-token@1.0 \
             --contract fixture:no-such-fixture >/dev/null 2>&1
           code=$?
           set -e
@@ -202,7 +218,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          ./target/debug/estamora run --spec fixtures --profile conformance-token@1.0 \
+          ./target/release/estamora run --spec fixtures --profile conformance-token@1.0 \
             --contract CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC \
             --network testnet >/dev/null 2>&1
           code=$?
