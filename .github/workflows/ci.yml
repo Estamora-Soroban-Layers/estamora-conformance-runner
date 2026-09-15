@@ -208,3 +208,27 @@ jobs:
           code=$?
           set -e
           test "$code" -eq 4 || { echo "expected 4, got $code"; exit 1; }
+
+  release-plan:
+    name: release plan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      # The crates.io publish sequence is a comment in `release.yml` because `cargo
+      # publish` is a human command, and a comment is checked by nothing. This reads it
+      # back and compares it with what Cargo resolves, so the plan cannot name a crate
+      # that has no way of being published — which is what `estamora-cli` did, listed as
+      # the last of eight commands when the registry requirement it would carry names a
+      # `publish = false` fixture and can never resolve.
+      - name: The publish sequence names crates that can be published
+        run: cargo metadata --no-deps --format-version 1 | python3 scripts/check-publish-plan.py
+
+      # The check is a shell script reading a comment, so it is tested the same way the
+      # installer is: against mutated copies of the real file, one per way the plan can be
+      # wrong. A checker nobody has seen fail is a checker nobody can rely on.
+      - name: Test the publish-plan checker
+        run: ./scripts/test-check-publish-plan.sh

@@ -84,14 +84,25 @@ jobs:
       # published cannot be packaged — which is a fact about the order publishes happen
       # in, not a defect, and it is reported as such rather than failing the job. Any
       # other packaging failure still fails it.
+      # The crates.io sequence is a comment at the end of this file, so it is prose, and
+      # prose is checked by nothing. This reads it back and fails when it disagrees with
+      # what Cargo resolves — including when a crate in it could not be packaged at all,
+      # which is how `estamora-cli` came to be listed here as a command that cannot
+      # finish. It is one place to edit and one check that reads it.
+      - name: The publish sequence names crates that can be published
+        run: cargo metadata --no-deps --format-version 1 | python3 scripts/check-publish-plan.py
+
+      # The list is asked for rather than repeated, so the loop and the documented
+      # sequence cannot disagree about which crates are published, and a crate that is
+      # deliberately not published is not reported here as merely pending.
       - name: Package every publishable crate
         shell: bash
         run: |
           set -euo pipefail
+          metadata=$(cargo metadata --no-deps --format-version 1)
+          mapfile -t crates < <(printf '%s' "$metadata" | python3 scripts/check-publish-plan.py --print-sequence)
           awaiting=0
-          for crate in estamora-core estamora-profile estamora-vectors \
-                       estamora-soroban estamora-assertions estamora-report \
-                       estamora-certification estamora-cli; do
+          for crate in "${crates[@]}"; do
             if cargo package --locked -p "$crate" 2> /tmp/package.log; then
               echo "packaged $crate"
             elif grep -q 'no matching package named' /tmp/package.log; then
@@ -104,7 +115,7 @@ jobs:
               exit 1
             fi
           done
-          echo "$awaiting crate(s) await a dependency; the rest are packaged"
+          echo "$awaiting of ${#crates[@]} crate(s) await a dependency; the rest are packaged"
 
       - name: Upload the packaged crates
         uses: actions/upload-artifact@v7
@@ -238,10 +249,10 @@ jobs:
   # `cargo publish` is deliberately not automated.
   #
   # Estamora publishes to crates.io, where a version is immutable and a mistake is
-  # permanent. The tag is pushed by a human, the release is created as a draft, and the
-  # publish is run by a human with a token — which is one command, and the one place in
-  # this repository where that is the right trade. Turning it into a workflow would make
-  # a permanent external action a consequence of `git push --tags`.
+  # permanent. The tag is pushed by a human and the publish is run by a human with a
+  # token — which is one command, and the one place in this repository where that is the
+  # right trade. Turning it into a workflow would make a permanent external action a
+  # consequence of `git push --tags`.
   #
   # When it is time, from a checkout of the tag, in dependency order:
   #
@@ -252,4 +263,22 @@ jobs:
   #   cargo publish -p estamora-assertions
   #   cargo publish -p estamora-report
   #   cargo publish -p estamora-certification
-  #   cargo publish -p estamora-cli
+  #
+  # `estamora-cli` is absent from that list because it cannot be in it. It takes
+  # `estamora-fixture-token` as a normal dependency, since `--contract fixture:<name>` is
+  # how the runner demonstrates and self-tests its execution path without a deployed
+  # contract, and that fixture is `publish = false`. Packaging rewrites a path dependency
+  # into a registry requirement of the same version, so the requirement `estamora-cli`
+  # would carry names a version no registry will ever hold: `cargo publish -p
+  # estamora-cli` is a command that cannot finish, and it was listed here as though it
+  # were merely later in the order. The command arrives as a release binary
+  # (`scripts/install-binary.sh`) or through `cargo install --git`, both of which build it
+  # from a checkout where the fixture crate is present.
+  #
+  # The sequence above is the plan and the line below is the decision, in the shape
+  # `scripts/check-publish-plan.py` reads. That checker derives the deliverable set from
+  # `cargo metadata` and fails when this block disagrees with it — a crate left out, a
+  # crate listed that cannot be packaged, an exclusion whose reason has stopped being
+  # true, or an order Cargo cannot follow.
+  #
+  # EXCLUDED estamora-cli: it has a normal dependency on `estamora-fixture-token`, which is `publish = false`

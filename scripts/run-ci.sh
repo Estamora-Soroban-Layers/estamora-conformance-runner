@@ -117,6 +117,17 @@ fi
 run "release checks" \
     ./scripts/release.sh --check
 
+# The plan the crates.io publish commands are run in. `cargo publish` is a human command,
+# so the sequence is a comment in the release workflow and this is the only thing that
+# reads it: it derives the crates that can actually be delivered from `cargo metadata` and
+# fails when the comment disagrees. The second step is what shows the first one can fail —
+# a checker nobody has seen fail is a checker nobody can rely on.
+run "the publish plan" \
+    bash -c 'cargo metadata --no-deps --format-version 1 | python3 scripts/check-publish-plan.py'
+
+run "the publish-plan checker" \
+    ./scripts/test-check-publish-plan.sh
+
 printf '\n'
 if [ "$FAILED" -eq 0 ]; then
     printf '\033[32mall checks passed\033[0m\n'
