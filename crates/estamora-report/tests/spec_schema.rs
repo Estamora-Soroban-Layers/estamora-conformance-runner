@@ -80,9 +80,15 @@ fn a_report() -> Report {
         target: Target {
             contract: "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM".to_owned(),
             network: "local".to_owned(),
-            // Reported as null rather than omitted when it could not be resolved, so
-            // that the absence is visible.
-            wasm_hash: None,
+            // A real code hash rather than `None`, so that validating this document
+            // against the published schema actually checks this field's format. With
+            // `None` it checked nothing, and a report went out carrying
+            // `sha256:<hex>` in a field the schema requires to be a bare 64-character
+            // hash — which no test could see, because the field was never populated
+            // here. The absent-hash case is a different claim and has its own test.
+            wasm_hash: Some(
+                "0fb7bc3d83b05a78d9f051e2e7baa8f368649da27512ff5e47c4a0f2b1eedc48".to_owned(),
+            ),
             metadata: BTreeMap::from([(
                 "name".to_owned(),
                 serde_json::Value::String("A hostile name \"/>".to_owned()),

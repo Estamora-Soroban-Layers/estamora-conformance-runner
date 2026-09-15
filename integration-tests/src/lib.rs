@@ -218,6 +218,7 @@ pub fn stored_report_path() -> PathBuf {
     repo_root().join("fixtures/expected-reports/conformant-transfer.json")
 }
 
+
 /// A temporary copy of the fixture bundle with one of the malformed documents over it.
 ///
 /// The returned guard owns the directory, so the caller does not have to remove it and a

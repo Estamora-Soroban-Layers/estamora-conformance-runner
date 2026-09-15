@@ -286,7 +286,11 @@ pub struct Deployment {
     pub contract: Address,
     /// The network, as a report records it.
     pub network: String,
-    /// The digest of the artifact deployed, where there was one.
+    /// The artifact deployed, where there was one, as its bare 64-character code hash.
+    ///
+    /// Not a `sha256:`-prefixed digest: this is the hash a network states for a
+    /// deployment and the form the report schema requires, and it has to be the same
+    /// string whichever route produced it.
     ///
     /// `None` for an in-repository fixture, which is registered from a Rust type
     /// rather than from a file. Reported as `null` rather than omitted so that the
@@ -433,7 +437,16 @@ pub fn deploy(
             // asked what it exposes.
             let describe = format!("the artifact {}", path.display());
             let interface = ExposedInterface::from_wasm(&bytes, describe.clone())?;
-            let wasm_hash = estamora_certification::Digest::of_bytes(&bytes).to_string();
+            // The bare code hash, without a `sha256:` prefix. That is the form the report
+            // schema requires of this field and the form a network reports, and the two
+            // routes have to agree: the same contract read from disk and read over RPC
+            // must hash to the same string, or a report's identity depends on where the
+            // bytes were found. The prefixed form is what a *digest* is elsewhere in a
+            // report — the profile and corpus digests — which is why this one converts
+            // rather than using the `Digest` display.
+            let wasm_hash = estamora_certification::Digest::of_bytes(&bytes)
+                .hex()
+                .to_owned();
 
             let contract = host.register_artifact(&bytes, &describe)?;
             Ok((

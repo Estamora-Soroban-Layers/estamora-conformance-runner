@@ -123,6 +123,11 @@ pub struct Target {
     pub network: String,
     /// The contract's WebAssembly hash, where it could be resolved.
     ///
+    /// The bare 64-character code hash, as a network states it for a deployment — not a
+    /// `sha256:`-prefixed digest like [`ProfileIdentity::digest`]. The schema draws that
+    /// distinction and this field is the one a consumer matches against the code hash an
+    /// explorer or an RPC node reports, so it has to be in the form they use.
+    ///
     /// Reported as `null` rather than omitted when it could not be, so that the
     /// absence is visible to a reader rather than indistinguishable from a field the
     /// producer did not implement.

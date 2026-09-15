@@ -403,9 +403,20 @@ fn the_digest_a_report_records_for_an_artifact_is_the_digest_of_its_bytes() {
         .expect("a deployed artifact has a hash");
 
     let bytes = std::fs::read(harness::fixture_wasm_path()).unwrap();
-    let computed = format!("sha256:{}", hex::encode(sha2::Sha256::digest(&bytes)));
+    let computed = hex::encode(sha2::Sha256::digest(&bytes));
 
     assert_eq!(recorded, computed);
+    // The form is part of the claim, not a presentation choice. The report schema
+    // requires a bare 64-character code hash in this field, and a network states one in
+    // the same form — so a prefix here would be both invalid and a second spelling of the
+    // same deployment, differing by which route read it.
+    assert_eq!(recorded.len(), 64, "a code hash is 64 hex characters");
+    assert!(
+        recorded
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+        "a code hash is lowercase hex: {recorded}"
+    );
 }
 
 #[test]
