@@ -1045,6 +1045,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "estamora-integration-tests"
+version = "0.1.0"
+dependencies = [
+ "estamora-cli",
+ "estamora-core",
+ "estamora-report",
+ "estamora-vectors",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "estamora-profile"
 version = "0.1.0"
 dependencies = [

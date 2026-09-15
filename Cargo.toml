@@ -27,6 +27,7 @@ members = [
   "crates/estamora-certification",
   "crates/estamora-cli",
   "fixtures/contracts/conformance-token",
+  "integration-tests",
 ]
 
 [workspace.package]

@@ -1,0 +1,71 @@
+# End-to-end tests for the runner.
+#
+# These are a crate rather than `tests/` directories inside `crates/estamora-cli`,
+# for one reason: they drive the library the way a user does. A test here builds a
+# `RunConfig`, calls `run`, and reads the report — it does not reach into the engine's
+# internals, open a profile by hand, or construct an observation. A change that breaks
+# the seam between the CLI and the engine has to fail these tests, and a test that
+# lived inside the crate could be written to pass through the seam instead of over it.
+#
+# Every test here runs against `fixtures/`, the in-repository profile and the
+# in-repository fixture contracts, so the suite has no external dependency and runs on
+# a checkout that has never seen `estamora-conformance-spec`. The tests that measure
+# the real specification are in the crates themselves and are skipped without it.
+[package]
+name = "estamora-integration-tests"
+description = "End-to-end conformance runs against the in-repository fixtures."
+publish = false
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "estamora_integration_tests"
+path = "src/lib.rs"
+
+[dependencies]
+estamora-cli = { path = "../crates/estamora-cli" }
+estamora-core = { path = "../crates/estamora-core" }
+estamora-report = { path = "../crates/estamora-report" }
+estamora-vectors = { path = "../crates/estamora-vectors" }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+# One target per conformance dimension, so that a failure names the dimension it is
+# about without a reader having to read the test body.
+[[test]]
+name = "local"
+path = "local/mod.rs"
+
+[[test]]
+name = "testnet"
+path = "testnet/mod.rs"
+
+[[test]]
+name = "authorization"
+path = "authorization/mod.rs"
+
+[[test]]
+name = "events"
+path = "events/mod.rs"
+
+[[test]]
+name = "failures"
+path = "failures/mod.rs"
+
+[[test]]
+name = "state"
+path = "state/mod.rs"
+
+[[test]]
+name = "invariants"
+path = "invariants/mod.rs"
