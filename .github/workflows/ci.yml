@@ -76,6 +76,17 @@ jobs:
       - name: Test
         run: cargo test --workspace --locked
 
+      # The cross-repository tests: the ones that measure this runner against the real
+      # specification repository rather than against a bundle the workspace wrote for
+      # itself. They are `#[ignore]`d so that a checkout without the specification still
+      # has a green suite, and this step is what turns them from ignored into checked.
+      # Checking the repository out does not do that on its own — `cargo test` skips an
+      # ignored test whatever is on disk — so without this step the claim that this
+      # runner consumes the specification, rather than merely compiling against it, was
+      # never exercised by CI at all.
+      - name: Cross-repository conformance
+        run: cargo test --workspace --locked -- --ignored
+
   profile:
     name: profile and corpus
     runs-on: ubuntu-latest
