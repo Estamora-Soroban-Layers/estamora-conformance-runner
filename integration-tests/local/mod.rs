@@ -301,6 +301,40 @@ fn a_stored_report_is_re_renderable_and_re_reads_identically() {
 }
 
 #[test]
+fn the_committed_network_measurement_reads_re_renders_and_agrees_with_the_artifact() {
+    // The one report here that a network produced. It is asserted rather than kept as
+    // documentation for two reasons: it has to stay readable by a later release, because
+    // a receipt commits to a report and a report the runner can no longer parse is a
+    // receipt nobody can verify; and the code hash it records has to be the hash of the
+    // artifact this repository commits, or the evidence is tied to bytes that have moved
+    // on and says nothing about what a reader will build.
+    let text = std::fs::read_to_string(harness::evidence_report_path()).unwrap();
+    let stored: estamora_report::Report = serde_json::from_str(&text)
+        .unwrap_or_else(|problem| panic!("the committed report is not readable: {problem}"));
+
+    assert_eq!(stored.target.network, "testnet");
+    assert_eq!(stored.profile.id, "sep-41");
+    assert_eq!(stored.vectors.count, 20);
+    assert_eq!(stored.status, ConformanceStatus::Inconclusive);
+    assert_eq!(stored.exit_code, 2);
+
+    // The same form a local measurement records, because the two routes describe one
+    // deployment: a code hash that differed by how it was read would make a report's
+    // identity depend on where the bytes were found.
+    let bytes = std::fs::read(harness::fixture_wasm_path()).unwrap();
+    let committed = hex::encode(sha2::Sha256::digest(&bytes));
+    assert_eq!(
+        stored.target.wasm_hash.as_deref(),
+        Some(committed.as_str()),
+        "the report records the artifact it measured, so it must be this one"
+    );
+
+    let rendered = estamora_report::render_markdown(&stored).unwrap();
+    assert!(rendered.contains("INCONCLUSIVE"));
+    assert!(rendered.contains("sep-41@1.0"));
+}
+
+#[test]
 fn a_document_that_is_not_a_report_is_refused_rather_than_read_as_one() {
     let text =
         std::fs::read_to_string(harness::malformed_inputs_root().join("report-not-a-report.json"))

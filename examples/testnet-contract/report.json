@@ -1,0 +1,812 @@
+{
+  "$schema": "https://estamora-soroban-layers.github.io/estamora-conformance-spec/schema/report.schema.json",
+  "estamora_spec_version": "1.0",
+  "runner": {
+    "name": "estamora",
+    "version": "0.1.1"
+  },
+  "generated_at": "2026-09-15T21:23:45Z",
+  "target": {
+    "contract": "CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P",
+    "network": "testnet",
+    "wasm_hash": "0fb7bc3d83b05a78d9f051e2e7baa8f368649da27512ff5e47c4a0f2b1eedc48",
+    "metadata": {}
+  },
+  "profile": {
+    "id": "sep-41",
+    "version": "1.0",
+    "digest": "sha256:94654291d4caf1eccd5aa3f2193532288b0667348ebcb60ec862c188e732aee6"
+  },
+  "vectors": {
+    "digest": "sha256:9a951e71f790708696ad356b2512a32dfbed23f4e8d0c2756f3d17e56466fba5",
+    "count": 20
+  },
+  "configuration": {
+    "contract": "CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P",
+    "network": "testnet",
+    "profile_root": "../estamora-conformance-spec/profiles/sep-41/1.0",
+    "seeding": "none",
+    "tags": [],
+    "vectors_root": "../estamora-conformance-spec/vectors"
+  },
+  "results": [
+    {
+      "vector_id": "allowance-expired-reads-as-zero",
+      "category": "boundary",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "approve-overwrites-allowance",
+      "category": "positive",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "balance-of-unknown-address-is-zero",
+      "category": "boundary",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "burn-reduces-holder-balance",
+      "category": "invariant",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "burn-from-beyond-allowance-fails",
+      "category": "state",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "decimals-reports-configured-precision",
+      "category": "positive",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "name-reports-non-empty-name",
+      "category": "positive",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "symbol-reports-non-empty-symbol",
+      "category": "positive",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "transfer-emits-exactly-one-event",
+      "category": "event",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "transfer-moves-exact-amount",
+      "category": "positive",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "transfer-from-beyond-allowance-fails",
+      "category": "negative",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "transfer-from-wrong-actor-fails",
+      "category": "authorization",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "unknown-account-balance-is-zero",
+      "category": "boundary",
+      "status": "passed",
+      "assertions": [
+        {
+          "id": "interface-method-allowance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method allowance is available",
+          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "detail": "check: interface/method/allowance"
+        },
+        {
+          "id": "interface-arity-allowance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "2 parameter(s)",
+          "observed": "2 parameter(s)",
+          "detail": "check: interface/arity/allowance"
+        },
+        {
+          "id": "interface-parameter-allowance-0",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/allowance/0\nparameter `from`"
+        },
+        {
+          "id": "interface-parameter-allowance-1",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/allowance/1\nparameter `spender`"
+        },
+        {
+          "id": "interface-return-allowance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "i128",
+          "observed": "i128",
+          "detail": "check: interface/return/allowance"
+        },
+        {
+          "id": "interface-method-approve",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method approve is available",
+          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "detail": "check: interface/method/approve"
+        },
+        {
+          "id": "interface-arity-approve",
+          "category": "interface",
+          "status": "passed",
+          "expected": "4 parameter(s)",
+          "observed": "4 parameter(s)",
+          "detail": "check: interface/arity/approve"
+        },
+        {
+          "id": "interface-parameter-approve-0",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/approve/0\nparameter `from`"
+        },
+        {
+          "id": "interface-parameter-approve-1",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/approve/1\nparameter `spender`"
+        },
+        {
+          "id": "interface-parameter-approve-2",
+          "category": "interface",
+          "status": "passed",
+          "expected": "i128",
+          "observed": "i128",
+          "detail": "check: interface/parameter/approve/2\nparameter `amount`"
+        },
+        {
+          "id": "interface-parameter-approve-3",
+          "category": "interface",
+          "status": "passed",
+          "expected": "u32",
+          "observed": "u32",
+          "detail": "check: interface/parameter/approve/3\nparameter `live_until_ledger`"
+        },
+        {
+          "id": "interface-return-approve",
+          "category": "interface",
+          "status": "passed",
+          "expected": "void",
+          "observed": "void",
+          "detail": "check: interface/return/approve"
+        },
+        {
+          "id": "interface-method-balance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method balance is available",
+          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "detail": "check: interface/method/balance"
+        },
+        {
+          "id": "interface-arity-balance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "1 parameter(s)",
+          "observed": "1 parameter(s)",
+          "detail": "check: interface/arity/balance"
+        },
+        {
+          "id": "interface-parameter-balance-0",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/balance/0\nparameter `id`"
+        },
+        {
+          "id": "interface-return-balance",
+          "category": "interface",
+          "status": "passed",
+          "expected": "i128",
+          "observed": "i128",
+          "detail": "check: interface/return/balance"
+        },
+        {
+          "id": "interface-method-transfer",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method transfer is available",
+          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "detail": "check: interface/method/transfer"
+        },
+        {
+          "id": "interface-arity-transfer",
+          "category": "interface",
+          "status": "passed",
+          "expected": "3 parameter(s)",
+          "observed": "3 parameter(s)",
+          "detail": "check: interface/arity/transfer"
+        },
+        {
+          "id": "interface-parameter-transfer-0",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/transfer/0\nparameter `from`"
+        },
+        {
+          "id": "interface-parameter-transfer-1",
+          "category": "interface",
+          "status": "passed",
+          "expected": "muxed_address",
+          "observed": "muxed_address",
+          "detail": "check: interface/parameter/transfer/1\nparameter `to`"
+        },
+        {
+          "id": "interface-parameter-transfer-2",
+          "category": "interface",
+          "status": "passed",
+          "expected": "i128",
+          "observed": "i128",
+          "detail": "check: interface/parameter/transfer/2\nparameter `amount`"
+        },
+        {
+          "id": "interface-return-transfer",
+          "category": "interface",
+          "status": "passed",
+          "expected": "void",
+          "observed": "void",
+          "detail": "check: interface/return/transfer"
+        },
+        {
+          "id": "interface-method-transfer-from",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method transfer_from is available",
+          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "detail": "check: interface/method/transfer-from"
+        },
+        {
+          "id": "interface-arity-transfer-from",
+          "category": "interface",
+          "status": "passed",
+          "expected": "4 parameter(s)",
+          "observed": "4 parameter(s)",
+          "detail": "check: interface/arity/transfer-from"
+        },
+        {
+          "id": "interface-parameter-transfer-from-0",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/transfer-from/0\nparameter `spender`"
+        },
+        {
+          "id": "interface-parameter-transfer-from-1",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/transfer-from/1\nparameter `from`"
+        },
+        {
+          "id": "interface-parameter-transfer-from-2",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/transfer-from/2\nparameter `to`"
+        },
+        {
+          "id": "interface-parameter-transfer-from-3",
+          "category": "interface",
+          "status": "passed",
+          "expected": "i128",
+          "observed": "i128",
+          "detail": "check: interface/parameter/transfer-from/3\nparameter `amount`"
+        },
+        {
+          "id": "interface-return-transfer-from",
+          "category": "interface",
+          "status": "passed",
+          "expected": "void",
+          "observed": "void",
+          "detail": "check: interface/return/transfer-from"
+        },
+        {
+          "id": "interface-method-burn",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method burn is available",
+          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "detail": "check: interface/method/burn"
+        },
+        {
+          "id": "interface-arity-burn",
+          "category": "interface",
+          "status": "passed",
+          "expected": "2 parameter(s)",
+          "observed": "2 parameter(s)",
+          "detail": "check: interface/arity/burn"
+        },
+        {
+          "id": "interface-parameter-burn-0",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/burn/0\nparameter `from`"
+        },
+        {
+          "id": "interface-parameter-burn-1",
+          "category": "interface",
+          "status": "passed",
+          "expected": "i128",
+          "observed": "i128",
+          "detail": "check: interface/parameter/burn/1\nparameter `amount`"
+        },
+        {
+          "id": "interface-return-burn",
+          "category": "interface",
+          "status": "passed",
+          "expected": "void",
+          "observed": "void",
+          "detail": "check: interface/return/burn"
+        },
+        {
+          "id": "interface-method-burn-from",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method burn_from is available",
+          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "detail": "check: interface/method/burn-from"
+        },
+        {
+          "id": "interface-arity-burn-from",
+          "category": "interface",
+          "status": "passed",
+          "expected": "3 parameter(s)",
+          "observed": "3 parameter(s)",
+          "detail": "check: interface/arity/burn-from"
+        },
+        {
+          "id": "interface-parameter-burn-from-0",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/burn-from/0\nparameter `spender`"
+        },
+        {
+          "id": "interface-parameter-burn-from-1",
+          "category": "interface",
+          "status": "passed",
+          "expected": "address",
+          "observed": "address",
+          "detail": "check: interface/parameter/burn-from/1\nparameter `from`"
+        },
+        {
+          "id": "interface-parameter-burn-from-2",
+          "category": "interface",
+          "status": "passed",
+          "expected": "i128",
+          "observed": "i128",
+          "detail": "check: interface/parameter/burn-from/2\nparameter `amount`"
+        },
+        {
+          "id": "interface-return-burn-from",
+          "category": "interface",
+          "status": "passed",
+          "expected": "void",
+          "observed": "void",
+          "detail": "check: interface/return/burn-from"
+        },
+        {
+          "id": "interface-method-decimals",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method decimals is available",
+          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "detail": "check: interface/method/decimals"
+        },
+        {
+          "id": "interface-arity-decimals",
+          "category": "interface",
+          "status": "passed",
+          "expected": "0 parameter(s)",
+          "observed": "0 parameter(s)",
+          "detail": "check: interface/arity/decimals"
+        },
+        {
+          "id": "interface-return-decimals",
+          "category": "interface",
+          "status": "passed",
+          "expected": "u32",
+          "observed": "u32",
+          "detail": "check: interface/return/decimals"
+        },
+        {
+          "id": "interface-method-name",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method name is available",
+          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "detail": "check: interface/method/name"
+        },
+        {
+          "id": "interface-arity-name",
+          "category": "interface",
+          "status": "passed",
+          "expected": "0 parameter(s)",
+          "observed": "0 parameter(s)",
+          "detail": "check: interface/arity/name"
+        },
+        {
+          "id": "interface-return-name",
+          "category": "interface",
+          "status": "passed",
+          "expected": "string",
+          "observed": "string",
+          "detail": "check: interface/return/name"
+        },
+        {
+          "id": "interface-method-symbol",
+          "category": "interface",
+          "status": "passed",
+          "expected": "required method symbol is available",
+          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "detail": "check: interface/method/symbol"
+        },
+        {
+          "id": "interface-arity-symbol",
+          "category": "interface",
+          "status": "passed",
+          "expected": "0 parameter(s)",
+          "observed": "0 parameter(s)",
+          "detail": "check: interface/arity/symbol"
+        },
+        {
+          "id": "interface-return-symbol",
+          "category": "interface",
+          "status": "passed",
+          "expected": "string",
+          "observed": "string",
+          "detail": "check: interface/return/symbol"
+        },
+        {
+          "id": "behavior-balance-read-does-not-mutate-state-outcome-unk-af30344d",
+          "category": "behavior",
+          "status": "passed",
+          "expected": "accepted",
+          "observed": "accepted",
+          "detail": "check: behavior/balance-read-does-not-mutate-state/outcome/unknown-account-balance-is-zero\nA balance query must not change any contract state."
+        },
+        {
+          "id": "behavior-balance-read-does-not-mutate-state-postcondition-0",
+          "category": "behavior",
+          "status": "passed",
+          "expected": "unchanged at 0",
+          "observed": "0 → 0",
+          "detail": "check: behavior/balance-read-does-not-mutate-state/postcondition/0\nA balance query must not change any contract state. (unchanged)"
+        },
+        {
+          "id": "event-forbidden-behavior-balance-read-does-not-mutate-s-afce2169",
+          "category": "event",
+          "status": "passed",
+          "expected": "no transfer event is emitted",
+          "observed": "0 emitted",
+          "detail": "check: event/forbidden/behavior/balance-read-does-not-mutate-state/transfer"
+        },
+        {
+          "id": "event-forbidden-behavior-balance-read-does-not-mutate-s-e4fe5f55",
+          "category": "event",
+          "status": "passed",
+          "expected": "no approve event is emitted",
+          "observed": "0 emitted",
+          "detail": "check: event/forbidden/behavior/balance-read-does-not-mutate-state/approve"
+        },
+        {
+          "id": "event-forbidden-behavior-balance-read-does-not-mutate-state-burn",
+          "category": "event",
+          "status": "passed",
+          "expected": "no burn event is emitted",
+          "observed": "0 emitted",
+          "detail": "check: event/forbidden/behavior/balance-read-does-not-mutate-state/burn"
+        },
+        {
+          "id": "authorization-plan-unknown-account-balance-is-zero",
+          "category": "authorization",
+          "status": "passed",
+          "expected": "the call is accepted with no signature",
+          "observed": "accepted",
+          "detail": "check: authorization/plan/unknown-account-balance-is-zero\nauthorization path: unauthorized"
+        },
+        {
+          "id": "authorization-principal-reads-require-no-authorization",
+          "category": "authorization",
+          "status": "passed",
+          "expected": "no principal is required to authorize",
+          "observed": "<no authorization required>",
+          "detail": "check: authorization/principal/reads-require-no-authorization\nthe profile declares that allowance, balance, decimals, name, symbol requires no authorization"
+        },
+        {
+          "id": "authorization-coverage-reads-require-no-authorization",
+          "category": "authorization",
+          "status": "passed",
+          "expected": "at most()",
+          "observed": "<no arguments>",
+          "detail": "check: authorization/coverage/reads-require-no-authorization\nthe coverage the contract demanded was derived by matching each authorized address against the call's own argument values, so it is what the contract required rather than what the vector offered; mode: at most"
+        },
+        {
+          "id": "authorization-outcome-reads-require-no-authorization-un-14b51988",
+          "category": "authorization",
+          "status": "passed",
+          "expected": "accepted",
+          "observed": "accepted",
+          "detail": "check: authorization/outcome/reads-require-no-authorization/unauthorized\npath: unauthorized"
+        },
+        {
+          "id": "event-forbidden-unknown-account-balance-is-zero-transfer",
+          "category": "event",
+          "status": "passed",
+          "expected": "no transfer event is emitted",
+          "observed": "0 emitted",
+          "detail": "check: event/forbidden/unknown-account-balance-is-zero/transfer"
+        },
+        {
+          "id": "event-forbidden-unknown-account-balance-is-zero-approve",
+          "category": "event",
+          "status": "passed",
+          "expected": "no approve event is emitted",
+          "observed": "0 emitted",
+          "detail": "check: event/forbidden/unknown-account-balance-is-zero/approve"
+        },
+        {
+          "id": "event-forbidden-unknown-account-balance-is-zero-burn",
+          "category": "event",
+          "status": "passed",
+          "expected": "no burn event is emitted",
+          "observed": "0 emitted",
+          "detail": "check: event/forbidden/unknown-account-balance-is-zero/burn"
+        },
+        {
+          "id": "state-unfunded-account-reads-zero",
+          "category": "state",
+          "status": "passed",
+          "expected": "0 (equal)",
+          "observed": "0",
+          "detail": "check: state/unfunded-account-reads-zero\nreads the balance of `dave`; The unfunded address must report zero rather than failing."
+        },
+        {
+          "id": "invariant-bounds-balances-non-negative-0",
+          "category": "invariant",
+          "status": "passed",
+          "expected": "0 (equal)",
+          "observed": "0",
+          "detail": "check: invariant/bounds/balances-non-negative/0\nmember 0 of `balances`: Every account's balance must be greater than or equal to zero.; Evaluated once against each member of the balance set. A negative balance means a value moved out of an account that did not have it, which is the arithmetic signature of an overflow or of a missing balance check."
+        }
+      ]
+    },
+    {
+      "vector_id": "zero-amount-transfer-succeeds",
+      "category": "boundary",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "transfer-without-signature-fails",
+      "category": "authorization",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "transfer-beyond-balance-fails",
+      "category": "negative",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "approve-grants-allowance",
+      "category": "positive",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "funded-balance-is-reported",
+      "category": "positive",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "transfer-authorized-by-wrong-actor-fails",
+      "category": "authorization",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    },
+    {
+      "vector_id": "transfer-from-consumes-allowance",
+      "category": "positive",
+      "status": "skipped",
+      "assertions": [],
+      "diagnostics": [
+        {
+          "code": "seeding-unavailable",
+          "message": "the vector declares an opening balance or allowance and a deployed contract publishes its own interface rather than Estamora's fixture setup entry points, and a measurement does not write to the ledger it reads from, so a vector whose world declares no opening balance or allowance can be prepared and one that declares either cannot; the requirement was not exercised and this vector contributes nothing to the verdict"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "interface": {
+      "passed": 49,
+      "failed": 0,
+      "total": 49
+    },
+    "authorization": {
+      "passed": 4,
+      "failed": 0,
+      "total": 4
+    },
+    "events": {
+      "passed": 6,
+      "failed": 0,
+      "total": 6
+    },
+    "behavior": {
+      "passed": 2,
+      "failed": 0,
+      "total": 2
+    },
+    "state": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "invariants": {
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    "failure": {
+      "passed": 0,
+      "failed": 0,
+      "total": 0
+    }
+  },
+  "status": "INCONCLUSIVE",
+  "exit_code": 2
+}

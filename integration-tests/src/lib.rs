@@ -218,6 +218,17 @@ pub fn stored_report_path() -> PathBuf {
     repo_root().join("fixtures/expected-reports/conformant-transfer.json")
 }
 
+/// The report of the measurement committed beside the example that produced it.
+///
+/// This one was made over RPC against a contract deployed to testnet, so it is the only
+/// report in the repository that a network produced. It is read by a test for a second
+/// reason beyond re-rendering: it is a document written by an earlier release, and a
+/// change to the report model that made it unreadable would break every receipt that
+/// commits to a report the runner no longer produces.
+#[must_use]
+pub fn evidence_report_path() -> PathBuf {
+    repo_root().join("examples/testnet-contract/report.json")
+}
 
 /// A temporary copy of the fixture bundle with one of the malformed documents over it.
 ///

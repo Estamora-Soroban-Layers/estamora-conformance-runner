@@ -69,6 +69,66 @@ a known network name at a closed port. A network failure and a non-conformant co
 have nothing in common, and a CI job that conflated them would train its users to ignore
 it.
 
+## A measurement that was actually made
+
+[`report.json`](report.json) beside this file is the output of a real run, not an
+illustration. It is committed because the question a reader of this repository
+should be able to answer without taking anything on trust is whether the `.wasm`
+target has ever met a contract over a network, and a document produced by the
+tool is a better answer than a paragraph saying it works.
+
+| | |
+| --- | --- |
+| contract | `CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P` |
+| network | `testnet` |
+| artifact | `sha256:0fb7bc3d…b1eedc48` — the digest of `fixtures/wasm/measurable-token.wasm` |
+| profile | `sep-41@1.0`, digest `sha256:94654291…e732aee6` |
+| runner | `estamora 0.1.1`, `2026-09-15T21:23:45Z` |
+| reported | 63 checks, 0 failed · 1 vector passed, 19 skipped |
+| verdict | `INCONCLUSIVE` (exit `2`) |
+
+The artifact resolves over RPC, the instance's own code hash is compared against
+the fetched bytes, the interface is read out of the deployed artifact's spec
+section, and every check the profile declares held: 49 interface, 4
+authorization, 6 event, 2 behavioural, 1 state and 1 invariant. One of the twenty
+vectors — `unknown-account-balance-is-zero` — needs no seeded state, so it was
+decided against the contract over the network and passed.
+
+### Why the verdict is not `CONFORMANT`
+
+The other nineteen vectors declare an opening balance or allowance, and a vector's
+world cannot be established in a deployed artifact: this runner does not write to
+the ledger it reads from, and the fixture entry points it uses to seed a local
+fixture are not part of any standard. A requirement that was never exercised is
+not a requirement that held, so the run is `INCONCLUSIVE` rather than conformant —
+and it is deliberately not `NON_CONFORMANT` either, because nothing about the
+contract is being blamed for the runner's inability to set up a scenario.
+
+That is the honest shape of a remote measurement today, and it is why the profile
+splits its corpus: the vectors that need a seeded world are the ones that must be
+measured where state can be written, and the ones that do not are measurable
+anywhere.
+
+### Reproducing it
+
+```bash
+# The same artifact, built from the same source under the pinned toolchain.
+./scripts/build-fixture-wasm.sh
+
+# Deploy it. Any funded testnet account will do.
+stellar contract deploy \
+    --wasm fixtures/wasm/measurable-token.wasm \
+    --source <identity> --network testnet
+
+# Measure what was deployed.
+estamora run --profile sep-41@1.0 --contract <contract-id> --network testnet \
+    --report report.json
+```
+
+A different deployment produces a different contract identifier and a different
+timestamp, so the report will differ in those fields. What it must not differ in
+is the artifact digest: that field is what ties a verdict to a compilation.
+
 ## Networks without a live node
 
 For the parts of the pipeline that must be exercised deterministically, the local
