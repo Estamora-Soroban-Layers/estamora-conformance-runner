@@ -191,10 +191,50 @@ impl VectorOutcome {
         code: impl Into<String>,
         message: impl Into<String>,
     ) -> Self {
+        Self::undecided(vector_id, category, VectorStatus::Error, code, message)
+    }
+
+    /// A vector that was deliberately not run, with the reason.
+    ///
+    /// `Skipped` rather than `Error`, and the difference is not cosmetic: `Error`
+    /// says the runner tried and could not, while `Skipped` says the vector's
+    /// preconditions were never established — a capability the run does not have,
+    /// such as a way to put the fixture's opening balances into the contract. Both
+    /// leave the requirement unexercised, and both are treated identically when a
+    /// run is reduced to a verdict, so the distinction is one a reader of the report
+    /// makes rather than one the verdict makes.
+    #[must_use]
+    pub fn skipped(
+        vector_id: impl Into<String>,
+        category: impl Into<String>,
+        code: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::undecided(vector_id, category, VectorStatus::Skipped, code, message)
+    }
+
+    /// A vector that produced no verdict, with the reason and the status saying which
+    /// kind of non-verdict it was.
+    ///
+    /// One constructor rather than two so that the two undecided statuses cannot
+    /// acquire different shapes, and so that a caller cannot accidentally report one
+    /// as the other by assembling it by hand.
+    #[must_use]
+    fn undecided(
+        vector_id: impl Into<String>,
+        category: impl Into<String>,
+        status: VectorStatus,
+        code: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        debug_assert!(
+            !status.decided(),
+            "a constructor for an undecided vector must not be given a decided status"
+        );
         Self {
             vector_id: vector_id.into(),
             category: category.into(),
-            status: VectorStatus::Error,
+            status,
             assertions: Vec::new(),
             diagnostics: vec![OutcomeDiagnostic::new(code, message)],
         }

@@ -25,6 +25,7 @@ members = [
   "crates/estamora-assertions",
   "crates/estamora-report",
   "crates/estamora-certification",
+  "crates/estamora-cli",
   "fixtures/contracts/conformance-token",
 ]
 
@@ -71,8 +72,13 @@ time = { version = "0.3.45", features = ["formatting", "parsing", "serde"] }
 # Soroban. The runner executes contracts through the SDK's test host locally and
 # through the RPC client against a network.
 soroban-sdk = { version = "27.0.6", features = ["testutils"] }
-stellar-rpc-client = "27.0.0"
-stellar-xdr = { version = "28.0.0", features = ["curr", "std"] }
+# No RPC client is declared. Reading a deployed contract's state and sending a
+# transaction to a network needs one, and the crate that provides it is not available to
+# this workspace: a decoration that cannot be compiled is worse than an honest absence,
+# because it makes an unimplemented path look implemented. `estamora-cli`'s `Target`
+# models the network case and refuses it with the reason named, as an environment
+# failure rather than as anything about a contract.
+stellar-xdr = { version = "27.0.0", features = ["curr", "std"] }
 # JSON Schema validation, so the runner rejects a profile the same way the
 # specification's own tooling does instead of re-deriving the rules.
 jsonschema = "0.56.0"

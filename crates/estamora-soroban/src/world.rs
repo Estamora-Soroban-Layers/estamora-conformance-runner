@@ -208,6 +208,15 @@ impl<'a> ContractWorld<'a> {
     pub fn from_host(&self, val: &Val) -> Result<Value> {
         let env = self.env;
 
+        // A void return is the dominant case for every mutating method in SEP-41, and it
+        // has to be recognised before the numeric attempts: left to them it fails every
+        // conversion and the call is recorded as one whose result the runner could not
+        // read, which makes every void-returning method in a profile undecidable rather
+        // than measured. It is reported as an absence, which is what it is.
+        if matches!(ScVal::from_val(env, val), ScVal::Void) {
+            return Ok(Value::Absent);
+        }
+
         if let Ok(number) = i128::try_from_val(env, val) {
             return Ok(Value::Integer(number));
         }

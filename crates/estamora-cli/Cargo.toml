@@ -1,0 +1,56 @@
+[package]
+name = "estamora-cli"
+description = "The `estamora` command: run Soroban conformance profiles against a contract and report the result."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+# The crate is a library with a thin binary in front of it. Everything worth testing
+# — profile loading, target resolution, the execution of a vector, report assembly —
+# is in the library, so an integration test drives the same code a user's command
+# line drives rather than a second copy of the pipeline. Putting the pipeline in
+# `main.rs` would make the only test of it a subprocess invocation, and the parts
+# that decide a verdict are the parts that most need a direct test.
+name = "estamora_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "estamora"
+path = "src/main.rs"
+
+[dependencies]
+estamora-assertions = { path = "../estamora-assertions" }
+estamora-certification = { path = "../estamora-certification" }
+estamora-core = { path = "../estamora-core" }
+estamora-profile = { path = "../estamora-profile" }
+estamora-report = { path = "../estamora-report" }
+estamora-soroban = { path = "../estamora-soroban" }
+estamora-vectors = { path = "../estamora-vectors" }
+# The in-repository contract set is a real dependency rather than a test-only one,
+# because `--contract fixture:<name>` is how the runner is demonstrated and
+# self-tested without a deployed contract, and shipping a binary that could not
+# exercise its own execution path would make the examples unrunnable. The crate is
+# `publish = false`, so installation is from a checkout or a release artefact (see
+# `scripts/install.sh`) rather than from a registry, which is what the whole
+# workspace assumes.
+estamora-fixture-token = { path = "../../fixtures/contracts/conformance-token" }
+soroban-sdk = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+time = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
