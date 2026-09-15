@@ -176,8 +176,21 @@ dbg_macro = "deny"
 # its source, and debug info is stripped because release artefacts are shipped.
 lto = "fat"
 codegen-units = 1
-panic = "abort"
 strip = "symbols"
+# `panic` is stated rather than left implicit, because leaving it implicit is how it came
+# to be set to `abort` and a released binary came to be unable to produce a verdict at all.
+#
+# `abort` looks like a free few kilobytes and is a behavioural difference. A Soroban
+# contract reports a failure by panicking, and the path the `fixture:` targets run on goes
+# through `soroban-env-host`'s test utilities, which deliberately replace the panic hook so
+# that a panic from inside a contract prints nothing, and then catch the unwind to turn it
+# into a host error. Under `abort` there is no unwind to catch and no hook left to print
+# with, so the first vector that expects a failure ends the process: `estamora run
+# --contract fixture:none` exited 134 with zero bytes of stdout and stderr in every
+# released binary up to and including 0.1.2, while the debug build the whole test suite
+# used exited 0 and 1 exactly as documented. Asserting the contract on a build nobody
+# ships is asserting a different program, so CI asserts it on this profile.
+panic = "unwind"
 
 [profile.bench]
 debug = true
