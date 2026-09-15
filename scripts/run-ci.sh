@@ -20,7 +20,10 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT"
+# `set -e` is deliberately off in this script — it has to run every step and report at
+# the end rather than stop at the first failure — so the one command whose failure would
+# invalidate everything after it checks itself.
+cd "$ROOT" || exit 1
 
 # `--spec` is passed explicitly below rather than left to the environment, so that the
 # profile this repository validates is the one in the repository.

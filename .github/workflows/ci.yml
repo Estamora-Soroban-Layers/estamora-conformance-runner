@@ -121,6 +121,28 @@ jobs:
             --profile conformance-token@1.0 \
             --contract fixture:none
 
+  installer:
+    name: binary installer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The installer is the one place in this project where a network answer decides
+      # what gets executed on a user's machine, so it is tested rather than trusted.
+      # The suite builds a release of its own, points the installer at it with
+      # `file://`, and asserts that a verified archive installs while a tampered one, a
+      # release with no checksums and one whose checksums omit the archive are all
+      # refused. It needs no toolchain and no network, so it costs seconds.
+      - name: Test the binary installer
+        run: ./scripts/test-install-binary.sh
+
+      # `shellcheck` is preinstalled on the hosted runners. It is used rather than a
+      # pinned action because a linter for a shell script has no business being a
+      # supply-chain dependency; the version difference between runner images is the
+      # only thing that varies, and a new finding there is a finding either way.
+      - name: Lint the shell scripts
+        run: shellcheck --version && shellcheck --severity=warning scripts/*.sh
+
   exit-codes:
     name: exit-code contract
     runs-on: ubuntu-latest
