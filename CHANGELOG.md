@@ -51,6 +51,11 @@ incorrect verdict is fixed rather than preserved.
   whose constructor takes arguments is consequently measurable.
 * **`LocalHost::holding`**, which assembles a host around an artifact and the instance
   entry that names it, refusing a pair that does not agree.
+* **A contract that is compiled to WebAssembly**, so the `.wasm` target can be measured
+  by the test suite. `fixtures/contracts/measurable-token` declares its own workspace —
+  the runner's enables the SDK's `testutils` for every member, and that does not compile
+  for WebAssembly — and `scripts/build-fixture-wasm.sh` produces the artifact committed
+  under `fixtures/wasm/`. CI rebuilds it and fails if the committed copy differs.
 
 ### Changed
 
