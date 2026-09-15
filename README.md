@@ -33,6 +33,7 @@ aspirational. What exists and is tested today:
 | Crate | State |
 | --- | --- |
 | `estamora-core` | **Implemented.** The error taxonomy, the six conformance statuses, the rule that reduces vector results to a verdict, and the exit-code contract. |
+| `estamora-soroban` | **Implemented for local execution.** A deterministic host pinned to a declared ledger point, contract registration from WebAssembly or an in-repository fixture, invocation with outcome classification, event capture, and authorization as a scenario property with the demanded authorizations recorded. |
 
 Nothing in the table below exists yet. It is the intended layout, listed so that the
 boundary between crates is reviewable before the code is written.
@@ -41,11 +42,25 @@ boundary between crates is reviewable before the code is written.
 | --- | --- |
 | `estamora-profile` | Load, parse, validate and resolve a profile bundle |
 | `estamora-vectors` | Load and resolve the vector corpus |
-| `estamora-soroban` | Resolve a contract, invoke it, capture events, authorization and state |
 | `estamora-assertions` | Evaluate one profile requirement against one observation |
 | `estamora-report` | Render results as JSON, Markdown and JUnit |
 | `estamora-certification` | Digest, receipt and receipt verification |
 | `estamora-cli` | The `estamora` binary |
+
+### Two facts about Soroban execution that shape the design
+
+Both were established by running contracts against the SDK's test host, not assumed,
+and both are pinned by tests in `estamora-soroban`.
+
+**A missing method aborts exactly like a deliberate `panic!()`.** The host reports both
+through one channel, so a call that failed is *not* evidence that the contract refused
+it. Only a contract whose interface has been inspected can have its aborts read as
+refusals, which is why interface inspection runs before the behavioural vectors and why
+every observation records whether that inspection happened.
+
+**A refused call leaves no observable trace.** Its events and its mutations are both
+rolled back. That is what makes "a refusal must emit nothing" and "a refusal must not
+mutate state" enforceable requirements rather than aspirations.
 
 There is no CLI yet, so no command is documented here. Documenting a command that does not
 run would be worse than documenting none.
