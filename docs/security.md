@@ -85,6 +85,30 @@ a pathological contract can take as long as the host's budget allows. A conforma
 run is not a denial-of-service defence, and should not be run against an artifact
 from an untrusted source without one.
 
+### A node is untrusted too
+
+Resolving a deployed contract moves two more things across the trust boundary: the
+endpoint being read, and the bytes it returns.
+
+* **The endpoint is whatever you named.** `testnet` and `mainnet` are hard-coded, and
+  anything else is named through `ESTAMORA_RPC_URL`, so a result always says which
+  operator answered. A different operator means a different answer, which is why the
+  endpoint is recorded rather than defaulted to silently.
+* **The artifact is verified against the contract's own claim.** The fetched
+  WebAssembly must hash to the code hash the contract instance declares. That is what
+  stops a lying node from handing over an artifact the contract is not running, and
+  it is checked before anything is measured.
+* **A node's answer is parsed, not trusted.** Every field it returns is required to be
+  present and well formed, and a response that is not is `reason: malformed-response`
+  rather than a default. Reading a missing ledger sequence as zero, for instance,
+  would silently misreport when an entry was last touched.
+
+What verification cannot do: a node that serves the *correct* artifact can still lie
+about which contract you asked for. The identifier and network are recorded in the
+report so that the claim is auditable, but nothing here proves the artifact you
+measured is the one at that identifier on the network everybody else sees. That is a
+property of the ledger, not of the runner.
+
 ### Reports are output, not input, except when they are
 
 `estamora report` and `estamora certify verify` read a JSON report that arrived from

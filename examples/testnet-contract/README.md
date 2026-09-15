@@ -21,55 +21,53 @@ something other than what you asked about. The report records both, along with
 the source account the invocation was made from, because a conformance result that
 does not name the contract it is about is not evidence of anything.
 
-## What this build does with that command
+## What the runner does with that command
+
+The identifier is resolved over RPC to the WebAssembly the contract is running, and
+those bytes are then measured in the local host — the same host, and the same
+evaluation, as a `.wasm` file on disk:
 
 ```console
 $ estamora run --profile sep-41@1.0 --contract CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC --network testnet
-CONTRACT_RESOLUTION_ERROR: contract CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC on
-`testnet` cannot be resolved by this build: reading a deployed contract's interface and state needs
-a Soroban RPC transport, and none is linked into this runner. No verdict about the contract was
-reached, and this failure is classified as an environment failure rather than as a conformance result
+CONTRACT_RESOLUTION_ERROR: CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC on
+`testnet` is a Stellar Asset Contract, whose behaviour is implemented by the host rather
+than by a deployed artifact. There is no WebAssembly to measure, so no portability
+profile can be applied to it
   contract: CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC
   network: testnet
-  reason: network-transport-unavailable
+  reason: host-implemented-contract
 $ echo $?
 4
 ```
 
-That is the honest answer, and it is deliberately not a graceful one. A runner
-that accepted a contract identifier, did nothing with it, and printed a verdict
-would be the worst possible outcome here: a fabricated `CONFORMANT` is
-indistinguishable from a real one to anyone who did not run it. So the target
-resolution layer is written as a boundary — the CLI, the engine and the report all
-handle a remote target, and the one thing that is absent is the RPC transport —
-and it fails with a named reason code instead of a generic message.
+That contract is a poor example for a different reason than it used to be: it is the
+native asset's Stellar Asset Contract, and a Stellar Asset Contract is the one kind of
+contract that genuinely cannot be measured this way — its behaviour lives in the host,
+not in an artifact that could be deployed anywhere. The runner says so by name rather
+than reporting an empty interface.
 
-`integration-tests/testnet/` pins exactly this, including the property that
-matters most:
+Nothing is submitted to the network and no account is funded. Two calls are made,
+`getNetwork` and `getLedgerEntries`. A verdict must not depend on a shared ledger's
+state at the moment it was asked, on a node's willingness to accept a transaction, or
+on somebody else's keys, and re-running it produces the same result as long as the
+deployment has not changed.
+
+Resolution verifies the one property that makes reading a contract from a single server
+mean anything: the fetched WebAssembly must hash to the code hash the contract instance
+itself declares. A disagreement is `reason: artifact-hash-mismatch` and exits `4`.
+
+`integration-tests/testnet/` pins the property that matters most — that an outage is an
+environment failure and never a verdict:
 
 ```console
 $ cargo test -p estamora-integration-tests --test testnet
 ```
 
-Two of those tests assert that a network failure is classified as an environment
-failure, exits `4`, and can never share an exit code with a non-conformant
-contract. `PARTIALLY_CONFORMANT` and an unreachable node have nothing in common,
-and a CI job that conflated them would train its users to ignore it.
-
-## What a network run would do, and why the shape is already fixed
-
-Reading a deployed contract needs two things the local path also needs, in the
-same order:
-
-1. **Inspection** — the contract's interface, read from its on-chain contract
-   metadata. This is one conformance layer, not a verdict: a contract can expose
-   every method and still behave incorrectly, which is the reason Estamora exists.
-2. **Invocation** — the vectors, executed against the deployed contract.
-
-Neither is a stub. `estamora inspect` reads an interface from a compiled artefact
-today, and the same inspection model is what a remote resolution would populate. So
-the difference between a local run and a network run is one transport, not a second
-code path, and the report shape is already the one a network run would produce.
+The tests that need a live ledger are `#[ignore]`d and run through
+`scripts/test-testnet.sh`; the classification itself is asserted by default, by pointing
+a known network name at a closed port. A network failure and a non-conformant contract
+have nothing in common, and a CI job that conflated them would train its users to ignore
+it.
 
 ## Networks without a live node
 

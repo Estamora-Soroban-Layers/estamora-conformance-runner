@@ -86,10 +86,12 @@ incorrect verdict is fixed rather than preserved.
 
 ### Known limitations
 
-* **No network transport.** `--contract <id> --network <name>` is accepted, modelled
-  and refused with a named reason (`network-transport-unavailable`), exiting as an
-  environment failure rather than producing a verdict. Adding one is adding a
-  transport, not a second pipeline.
+* **A constructor that takes arguments cannot be run.** Instantiating an artifact runs
+  its `__constructor`, and no environment supplies the arguments a deployed contract's
+  constructor took — only its deployer knew them. The runner refuses such an artifact
+  with `reason: constructor-needs-arguments` and exits `4`, rather than inventing
+  arguments and fabricating the state the vectors are then measured against. A
+  contract with no constructor, or one that takes none, is measured normally.
 * **Opening state cannot be established for an arbitrary artifact.** A vector that
   declares an opening balance is `skipped` against a `.wasm` target, with the reason,
   and the run becomes `INCONCLUSIVE`. Establishing it needs a declaration the

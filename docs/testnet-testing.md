@@ -5,87 +5,83 @@ difference is not the contract: it is that the contract is no longer yours, it m
 have been upgraded since you read its source, and the ledger it runs on is not one
 you control.
 
-## What this build does today
+## How a deployed contract is measured
 
-`--contract <id> --network <name>` is accepted, modelled, and refused:
+`--contract <id> --network <name>` resolves the identifier to the WebAssembly the
+contract is running, and then measures those bytes in the local host — the same host,
+and the same evaluation, as a `.wasm` file on disk:
 
 ```console
-$ estamora run --profile sep-41@1.0 --contract CDLZ…GCYSC --network testnet
-CONTRACT_RESOLUTION_ERROR: contract CDLZ…GCYSC on `testnet` cannot be resolved by this
-build: reading a deployed contract's interface and state needs a Soroban RPC transport,
-and none is linked into this runner. No verdict about the contract was reached, and this
-failure is classified as an environment failure rather than as a conformance result
-  contract: CDLZ…GCYSC
-  network: testnet
-  reason: network-transport-unavailable
-$ echo $?
-4
+$ estamora run --profile sep-41@1.0 --contract C… --network testnet
 ```
 
-That is deliberate, and it is deliberately not graceful. A runner that accepted a
-contract identifier, did nothing with it, and printed a verdict would be the worst
-possible outcome: a fabricated `CONFORMANT` is indistinguishable from a real one to
-anyone who did not run it. So the failure names its reason and exits `4`, which is
-the code for *the environment failed, retry*, and never `1`.
+Nothing is submitted to the network and no account is funded. Two calls are made,
+`getNetwork` and `getLedgerEntries`, and everything a verdict depends on happens
+locally. That is deliberate: a verdict must not depend on a shared ledger's state at the
+moment it was asked, on a node's willingness to accept a transaction, or on somebody
+else's keys. Re-running it produces the same result as long as the deployment has not
+changed.
 
-A network failure and a non-conformant contract have nothing in common, and a CI job
-that conflated them would train its users to ignore it. `integration-tests/testnet/`
-pins exactly that property, along with the classification.
+Resolution verifies one property that makes reading a contract from a single server
+mean anything at all: the fetched WebAssembly must hash to the code hash the contract
+instance itself declares. Without that check the two ledger entries could disagree and
+the runner would measure an artifact that is not the one deployed. A disagreement is
+`reason: artifact-hash-mismatch` and exits `4`.
 
-## Why the transport is absent rather than stubbed
+### The three ways resolution fails
 
-Reading a deployed contract needs a Soroban RPC client, and no crate providing one
-is available to this workspace. The alternative to an honest absence was a dependency
-that does not compile, or a module that looks implemented and returns mocked data.
-Both are worse than a named refusal, because both make an unimplemented path look
-implemented — and a mocked network read feeding a real-looking verdict is the failure
-mode this project exists to prevent.
+| Failure | Class | Reason | Exit |
+| --- | --- | --- | --- |
+| A node that cannot be reached | `NETWORK_ERROR` | `network-unreachable` | 4 |
+| A well-formed identifier that is not on that network | `CONTRACT_RESOLUTION_ERROR` | `contract-not-found` | 4 |
+| A Stellar Asset Contract | `CONTRACT_RESOLUTION_ERROR` | `host-implemented-contract` | 4 |
+| An artifact whose constructor takes arguments | `CONTRACT_RESOLUTION_ERROR` | `constructor-needs-arguments` | 4 |
 
-The workspace manifest states this where the dependency would have been declared, so
-a reader does not have to discover it from a missing crate.
+None of these is a verdict, and none exits `1`. A network failure and a non-conformant
+contract have nothing in common, and a CI job that conflated them would train its users
+to ignore it.
 
-## What is already in place for it
+## The constructor boundary
 
-The network path is a **boundary**, not a second pipeline. Everything except the
-transport is written and tested:
+Instantiating an artifact runs its `__constructor`, and no environment supplies the
+arguments a deployed contract's constructor took — only its deployer knew them. The
+runner refuses such an artifact by name rather than inventing plausible arguments,
+because inventing them would fabricate the very state the vectors are then measured
+against:
 
-* `Target::Remote` models a contract identifier together with its network, and the
-  exit classification for it is `EnvironmentFailed`.
-* The report records `network`, the contract identifier and the Wasm hash where one
-  is available, so a verdict names what it is about. A conformance result that does
-  not name the contract is not evidence of anything.
-* Interface inspection reads a contract's declared interface from a compiled
-  artifact today, and the same inspection model is what a remote resolution would
-  populate — including the rule that an interface is one layer of conformance and
-  never a verdict.
-* The local host is the same execution environment with time and authorization
-  fixed, so a network run adds a transport and a ledger, not a second evaluation.
+```console
+CONTRACT_RESOLUTION_ERROR: contract CAYPA…HXH2JA on `testnet` as read from
+https://soroban-testnet.stellar.org declares a constructor taking admin: address,
+fee_recipient: address, and a constructor can only be run by whoever deployed the
+contract: only the deployer knew what to pass it.
+  reason: constructor-needs-arguments
+```
 
-The consequence is that adding network support is adding one transport, not a new
-code path, and the report shape a network run would produce is the one already
-generated.
+This is the honest boundary of local re-execution, and it is a real one: a contract
+whose constructor takes arguments cannot be instantiated locally, so nothing about its
+behaviour can be concluded from this runner. A contract with no constructor, or one
+that takes none, is measured normally.
 
-## What a network run would have to do
+## Seeding is unavailable on a network target
 
-In the order the pipeline already establishes:
+A vector declares the state its operation starts from: Alice holds 1000. For that to be
+true, something has to put 1000 there. A deployed contract publishes its own interface,
+not Estamora's fixture setup entry points, and a measurement does not write to the
+ledger it reads from — so a vector whose world declares an opening balance or an
+allowance is reported `skipped` with that reason rather than failed. A requirement that
+was not exercised is not a requirement that was met; see `docs/local-testing.md`.
 
-1. **Resolve** — fetch the contract's Wasm hash or its contract instance, and refuse
-   explicitly when the identifier is unknown on that network. An unreachable node is
-   `NETWORK_ERROR`; an identifier that does not exist is
-   `CONTRACT_RESOLUTION_ERROR`. Neither is a verdict.
-2. **Inspect** — read the declared interface from on-chain metadata. A contract
-   whose metadata cannot be read has not been measured; reporting an empty interface
-   would claim a reading that did not happen.
-3. **Seed** — the same difficulty local runs have, one step harder: a deployed
-   contract's starting state cannot be set by the runner at all. A vector whose world
-   declares an opening balance is only measurable if the contract can be put into
-   that state through its own interface. Today it is reported `skipped` with the
-   reason; see `docs/local-testing.md`.
-4. **Invoke and observe** — a transaction's events and its authorization are the same
-   things a local run observes, read from a transaction result rather than from a
-   host.
-5. **Report** — with the network, the contract identifier and the ledger sequence the
-   run was made at, because a conformance result is about a contract at a moment.
+## Naming an endpoint this build does not know
+
+`testnet` and `mainnet` are the two networks this build knows by name, and deliberately
+so: a short list of networks a conformance result is meaningful about, rather than a
+registry. Any other endpoint is named explicitly, which makes the dependency on that
+particular operator visible in the command that produced the result:
+
+```console
+$ ESTAMORA_RPC_URL=https://soroban-rpc.example.org \
+    estamora run --profile sep-41@1.0 --contract C… --network futurenet
+```
 
 ## Keeping network tests out of the default suite
 
@@ -102,6 +98,10 @@ The script does nothing unless it is explicitly enabled and a specification chec
 is present, and it reports that it did nothing rather than passing quietly. A suite
 that reports success because it ran nothing is worse than one that fails.
 
-`integration-tests/testnet/` holds the tests that do not need a network: the target
-resolution, the classification of a network failure, and the exit code it produces.
-Those run in the default suite, because they assert something true of every build.
+The classification that matters most — that an outage is an environment failure and
+never a verdict — needs no network to assert, and is asserted in two places that do
+run by default: `estamora-soroban`'s `tests/testnet.rs` and `estamora-cli`'s
+`engine::target` tests both point a known network name at a closed port and check the
+class, the blame, the exit code and the endpoint the message names. What is left for
+the ignored set is the part that genuinely needs a live ledger: that a real deployment
+resolves to the artifact it declares.

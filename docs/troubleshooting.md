@@ -112,14 +112,17 @@ CONTRACT_RESOLUTION_ERROR: /nowhere/x.wasm is not a file, so there is no artifac
 or
 
 ```text
-CONTRACT_RESOLUTION_ERROR: ... cannot be resolved by this build: reading a deployed
-contract's interface and state needs a Soroban RPC transport, and none is linked
-into this runner.
-  reason: network-transport-unavailable
+CONTRACT_RESOLUTION_ERROR: no contract instance is stored at CDLZ…GCYSC on `testnet`. The
+identifier is well formed, so this is a contract that does not exist on that network rather
+than one that could not be read
+  contract: CDLZ…GCYSC
+  network: testnet
+  reason: contract-not-found
 ```
 
-The second is expected in this build and is documented in
-`docs/testnet-testing.md`. The first is a path problem.
+The second means the contract is not on that network — a mistyped identifier, or one
+from a different network. It exits `4`, not `1`: nothing about any contract's behaviour
+was observed. `docs/testnet-testing.md` covers the rest of the resolution failures.
 
 A contract that is loaded but publishes no `contractspecv0` section is also a
 resolution error, because a contract with no declared interface cannot be measured

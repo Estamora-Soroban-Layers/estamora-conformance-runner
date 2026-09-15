@@ -112,14 +112,14 @@ pub fn fixture_config(defect: &str, tags: &[&str]) -> estamora_cli::RunConfig {
 /// Runs the fixture profile against a target named as `--contract` would name it.
 ///
 /// `network` is required for a deployed contract and ignored otherwise. Returned rather
-/// than unwrapped because the tests that use it are about the *refusal* of a target this
-/// build cannot reach, which is an outcome rather than a defect in the test.
+/// than unwrapped because the tests that use it are about how a target that cannot be
+/// *reached* is reported, which is an outcome rather than a defect in the test.
 ///
 /// # Errors
 ///
 /// Returns a usage error for a contract that is neither a fixture nor a well-formed
-/// identifier, and a contract resolution error whenever the target cannot be reached —
-/// including every network target, since this build links no transport.
+/// identifier, a network error when the endpoint cannot be reached, and a contract
+/// resolution error when the contract cannot be read. None of those is a verdict.
 pub fn run_target(contract: &str, network: Option<&str>) -> estamora_core::Result<RunOutcome> {
     let target = Target::parse(contract, network)?;
     estamora_cli::run(&estamora_cli::RunConfig::new(

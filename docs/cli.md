@@ -181,6 +181,7 @@ a profile that spans more of an interface than it has finished.
 | Variable | Effect |
 | --- | --- |
 | `ESTAMORA_SPEC_REPO` | The specification checkout, when `--spec` is not given. |
+| `ESTAMORA_RPC_URL` | The endpoint to read a deployed contract from, overriding the one `--network` names. This is how a network this build does not know by name is reached; a blank value is treated as absent. |
 | `NO_COLOR` | Disables colour in terminal renderings. |
 | `RUST_LOG` | `tracing` filter for diagnostics written to standard error. |
 

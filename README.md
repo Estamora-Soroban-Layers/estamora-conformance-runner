@@ -59,13 +59,20 @@ This section is kept accurate rather than aspirational. What exists and is teste
 | `estamora-assertions` | **Implemented.** Interprets every value expression and predicate the format defines — comparisons, relative changes, aggregates over a resource set, arithmetic, composites — against a `World` trait that abstracts the execution environment, and evaluates all seven conformance dimensions for one vector: interface compatibility, authorization, events, behaviour, state, invariants and failure. A requirement that could not be evaluated produces an undecidable vector rather than a failed one. |
 | `estamora-cli` | **Implemented.** The `estamora` binary and the engine behind it: resolves a target (an in-repository fixture, a `.wasm` artifact, or a deployed contract and network), deploys it, builds the vector's declared world, seeds it through the fixture entry points, applies the vector's authorization plan, invokes the method, records the before-and-after worlds, evaluates all seven dimensions, reduces the run to a verdict, and renders it as text, JSON, Markdown or JUnit. Six commands: `run`, `inspect`, `profile`, `validate`, `report`, `certify`. |
 
-One target kind is deliberately not implemented: a **deployed contract**. Resolving one needs a
-Soroban RPC transport, and this build links none. Rather than accept a contract identifier and
-produce a verdict from nothing, `--contract <id> --network <net>` fails as
-`CONTRACT_RESOLUTION_ERROR` with `reason: network-transport-unavailable` and exit code `4` —
-classified as an environment failure, never as a contract that failed its profile. The failure
-mode is the same one an unreachable endpoint produces on a build that *does* have a transport,
-so the pipeline is exercised against it either way.
+A **deployed contract** is measured, not merely identified. `--contract <id> --network <net>`
+resolves the identifier over RPC to the WebAssembly the contract is running, verifies that the
+artifact hashes to the code hash the contract instance itself declares, and then measures those
+bytes in the local host exactly as a `.wasm` file on disk is measured. No funded account is
+needed, no transaction is submitted, and a shared ledger cannot change the answer half way
+through a corpus.
+
+Every way of *not* reading a contract is an environment failure that exits `4` and never `1`:
+an unreachable endpoint is `NETWORK_ERROR`, an identifier that does not exist is
+`CONTRACT_RESOLUTION_ERROR` with `reason: contract-not-found`, and an artifact whose
+constructor takes arguments nobody can supply is `reason: constructor-needs-arguments`. A CI
+job retries them or files them as infrastructure and never reads them as a contract that
+failed its profile. `--network` accepts `testnet` and `mainnet`; any other endpoint is named
+with `ESTAMORA_RPC_URL`.
 
 ### Two facts about Soroban execution that shape the design
 

@@ -11,7 +11,7 @@ network involved. It is the default and the mode everything else is built on.
 | --- | --- |
 | `fixture:<name>` | One of this repository's own contracts, registered from its Rust type. |
 | `<path>.wasm` | A compiled contract artifact, deployed from its bytes. |
-| `<contract-id> --network <net>` | A deployed contract. Needs a transport this build does not link; see `docs/testnet-testing.md`. |
+| `<contract-id> --network <net>` | A deployed contract. Its WebAssembly is read over RPC and then measured locally; see `docs/testnet-testing.md`. |
 
 `fixture:` targets exist so that a run can be attempted before you have written
 anything. The fixtures are the reference token with exactly one defect injected
