@@ -23,4 +23,13 @@
 //! have its failures read as refusals. See [`invoker`] for how the ambiguity is
 //! handled and why neither branch is guessed at.
 
+pub mod auth;
 pub mod errors;
+pub mod events;
+pub mod host;
+pub mod invoker;
+
+pub use auth::{AuthorizationMode, AuthorizationRecord, apply_authorizations};
+pub use events::CapturedEvent;
+pub use host::{DEFAULT_LEDGER_SEQUENCE, DEFAULT_LEDGER_TIMESTAMP, LedgerPoint, LocalHost};
+pub use invoker::{CallOutcome, Invocation, invoke};
