@@ -1,0 +1,162 @@
+# Local testing
+
+A local run executes a contract in a real Soroban host, on this machine, with no
+network involved. It is the default and the mode everything else is built on.
+
+## The three targets
+
+`--contract` accepts three things, and they are resolved differently:
+
+| Spelling | What it is |
+| --- | --- |
+| `fixture:<name>` | One of this repository's own contracts, registered from its Rust type. |
+| `<path>.wasm` | A compiled contract artifact, deployed from its bytes. |
+| `<contract-id> --network <net>` | A deployed contract. Needs a transport this build does not link; see `docs/testnet-testing.md`. |
+
+`fixture:` targets exist so that a run can be attempted before you have written
+anything. The fixtures are the reference token with exactly one defect injected
+each; an unknown name is refused by name and the refusal lists the fixtures that
+exist, rather than silently defaulting to the conforming one.
+
+## Building a contract to measure
+
+A Soroban contract is compiled for WebAssembly, and a normal host build will not
+load:
+
+```console
+$ cargo build --target wasm32v1-none --release -p my-token
+$ ls target/wasm32v1-none/release/my_token.wasm
+```
+
+`wasm32v1-none` is the current target for Soroban contracts. On older toolchains the
+same artifact comes from `wasm32-unknown-unknown`. `rust-toolchain.toml` in this
+repository pins `wasm32v1-none` for the workspace, so a fixture contract built here
+uses it.
+
+The runner reads the contract's interface from the artifact's `contractspecv0`
+section **before** deploying it. An artifact that publishes no spec section is
+refused with a contract resolution error, rather than deployed and then asked what
+it exposes: an artifact with no declared interface cannot be measured against a
+profile's interface requirements at all, and reporting an empty interface would
+claim a reading that never happened.
+
+## What limits a `.wasm` run, and why
+
+A vector declares the world its operation runs against — opening balances,
+allowances, total supply. Against a fixture, the runner establishes that world by
+calling the fixture's own setup entry points.
+
+**It does not assume your contract publishes equivalent entry points**, and it does
+not write your contract's storage directly. So a vector that declares an opening
+balance or an allowance against a `.wasm` target is reported as **`skipped`**, with a
+diagnostic naming the reason:
+
+```text
+• transfer-moves-exact-amount (skipped)
+    · seeding-unavailable the vector declares an opening balance or allowance and a
+      compiled artifact is not assumed to publish Estamora's fixture setup entry
+      points, so a vector whose world declares no opening balance or allowance can be
+      prepared and one that declares either cannot; the requirement was not exercised
+      and this vector contributes nothing to the verdict
+```
+
+A skipped vector is not a pass and not a failure. A run in which any required vector
+was skipped reaches `INCONCLUSIVE` and exits `2`, because a requirement that was not
+exercised cannot be reported as satisfied. The alternative — measuring the contract
+against a world it was never put into — would produce a verdict that looks exactly
+like a real one and is not one.
+
+This is a real limitation and it is worth stating plainly: **against an arbitrary
+`.wasm`, Estamora can measure the vectors whose starting world needs no opening
+state.** For SEP-41 that is `unknown-account-balance-is-zero` and the metadata
+reads. Everything else needs the contract to hold a balance to begin with, and
+SEP-41 has no method that establishes one — minting is outside the interface the
+standard defines, precisely because who may mint is the issuer's decision and not
+the standard's.
+
+Establishing opening state for an arbitrary contract therefore needs a declaration
+the specification format does not currently have: a way for a vector to say *call
+this method, with this authorization, to reach this state*, and for a profile to
+declare which methods may be called that way. That is a change to the specification
+— which is where it belongs, since this repository has no authority to decide it —
+and it is not something this runner will invent on its own. Until it exists, a
+contract being measured locally is measured through the fixture target, or through a
+profile whose vectors need no opening state.
+
+## The local host is not a mock
+
+`fixtures/contracts/` are compiled to real Wasm by the same Soroban SDK a user's
+contract is, and they run in a real Soroban host. The ledger sequence, the close
+time and every account's authorization are **fixed by the vector**, which is what
+makes a run reproducible: two runs of the same vector produce the same events, the
+same balances and the same verdict.
+
+That is not a simulation of a network. It is the same execution environment with
+time and randomness pinned, and it is why a stored report can be re-read and
+re-rendered a year later and produce the same document — which
+`integration-tests/` asserts against a report whose timestamp is pinned.
+`docs/testnet-testing.md` covers what changes when a real network is involved.
+
+Two facts about the host shape the design and are worth knowing before reading the
+source:
+
+* **A refused call unwinds the host's record of what was authenticated.** There is
+  nothing left to compare an authorization requirement against after a refusal,
+  which is why the authorization dimension reports a finding rather than a pass for
+  a vector that expects a refusal. See `docs/execution-engine.md`.
+* **Reading a contract's interface is a prerequisite for a call.** The runner reads
+  the spec section before anything else, so a call that later aborts can be
+  attributed to the contract rather than to a mis-typed invocation. The interface is
+  read first, and the invocation is typed against what was read.
+
+## A local run, end to end
+
+```console
+# Point at a specification checkout.
+$ export ESTAMORA_SPEC_REPO=/path/to/estamora-conformance-spec
+
+# Say what a profile requires, without executing anything.
+$ estamora profile --profile sep-41@1.0
+
+# Check that the profile and its corpus are usable.
+$ estamora validate --profile sep-41@1.0
+
+# Read a contract's interface.
+$ estamora inspect --contract ./target/wasm32v1-none/release/my_token.wasm
+
+# Measure it.
+$ estamora run \
+    --profile sep-41@1.0 \
+    --contract ./target/wasm32v1-none/release/my_token.wasm \
+    --report report.json
+```
+
+If you have no contract yet, `--contract fixture:none` runs the whole pipeline
+against the reference token. That is what `examples/local-contract/` walks through,
+including the real output.
+
+## Running the test suite
+
+```console
+$ cargo test --workspace
+```
+
+The workspace suite needs no network and no contract to be built by hand: the
+fixture contracts are Rust crates in the workspace, so the tests that measure them
+compile them as part of the build. Nothing in `cargo test --workspace` reaches a
+network, and nothing requires a specification checkout. The tests that measure the
+real SEP-41 profile run only when `ESTAMORA_SPEC_REPO` is set and the checkout
+actually contains it, and they skip themselves rather than fail when it is absent.
+
+```console
+$ cargo test -p estamora-integration-tests      # the end-to-end suite
+$ cargo test -p estamora-soroban                # the execution layer
+$ cargo test -p estamora-assertions             # the rule evaluators
+```
+
+## Where to look when something is wrong
+
+`docs/troubleshooting.md` maps each error class to what it means and what to do
+about it. The short version: the class name is the diagnosis, and the four classes
+never share an exit code, so a pipeline can tell a broken profile from a broken
+contract from a broken environment without parsing a message.

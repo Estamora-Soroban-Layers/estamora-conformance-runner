@@ -1,0 +1,94 @@
+# cargo-deny configuration.
+#
+# The dependency tree is part of what a conformance result means: a replacement
+# `sha2`, a different `ed25519-dalek`, or a patched `stellar-xdr` changes the tool
+# that produced a verdict, and every one of them is a supply-chain decision rather
+# than a build detail. This file is where those decisions are recorded.
+#
+# Run with `cargo deny check` in `fuzz/` or the workspace root.
+
+[graph]
+# The workspace has one target-independent dependency graph except for the contract
+# fixtures, which are built for WebAssembly. Checking all targets rather than the host
+# alone is what keeps a dependency of the fixture contract from going unexamined.
+all-features = true
+
+[advisories]
+# A vulnerability in a dependency is a vulnerability in the tool whose output people
+# gate merges on. There is no version of this check being "advisory" that is honest.
+version = 2
+yanked = "deny"
+ignore = [
+    # Add an entry only with a reason and a link, and remove it when the upgrade
+    # lands. A bare id with no comment is an exemption nobody can review:
+    #
+    # { id = "RUSTSEC-0000-0000", reason = "no patched release; the reachable path
+    #   needs `x` which this workspace does not enable — see <link>" },
+]
+
+[licenses]
+# The allow list is derived from what is actually in the tree, not from a template.
+# Every entry is a licence that permits redistribution under Apache-2.0 terms, so a
+# consumer of a published Estamora crate is not surprised by a copyleft dependency.
+#
+# `LGPL-2.1-or-later` is deliberately absent. It appears only inside a disjunction
+# (`MIT OR Apache-2.0 OR LGPL-2.1-or-later`), so the allowed branch is taken and the
+# package is fine; listing it here would allow a crate that chose it outright.
+version = 2
+confidence-threshold = 0.9
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "MIT",
+    "MIT-0",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+
+# A crate whose declared licence cannot be resolved from its source text gets a
+# `[[licenses.clarify]]` entry here — naming the crate, its expression and where in
+# its source the evidence is — rather than a loosened `confidence-threshold`. The
+# threshold exists to catch exactly the unresolvable case, and relaxing it globally
+# would stop catching it.
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# A dependency that appears twice at different majors is sometimes unavoidable — the
+# SDK's crypto majors are the example in `Cargo.toml` — which is why the default is a
+# warning. `deny` is reserved for a wildcard requirement, which is a version that
+# nobody has decided.
+
+[[bans.deny]]
+# The runner must not depend on the CLI, the integration harness, or the fixture
+# contract. Each would make a published crate carry something that is not a library:
+# the harness is tests, the fixture is a contract to measure, and the CLI is a binary.
+name = "estamora-integration-tests"
+wrappers = ["estamora-cli", "estamora-core", "estamora-report", "estamora-vectors"]
+
+[[bans.deny]]
+name = "estamora-fixture-token"
+wrappers = [
+    "estamora-cli",
+    "estamora-core",
+    "estamora-report",
+    "estamora-vectors",
+    "estamora-assertions",
+    "estamora-soroban",
+]
+
+[sources]
+# Crates come from crates.io. A git dependency would make a published crate
+# unbuildable for anyone without access to that repository, and would let the
+# dependency's contents change without this repository changing.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

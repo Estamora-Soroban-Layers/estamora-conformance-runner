@@ -25,10 +25,28 @@ own: it loads a profile, executes the vectors that belong to it, and reports wha
 Where this runner and the specification could disagree, the specification is right and this
 repository has a defect.
 
+## Documentation
+
+| Document | Answers |
+| --- | --- |
+| [`docs/architecture.md`](docs/architecture.md) | How the two repositories divide, how the crates are layered, and where a failure is attributed. |
+| [`docs/execution-engine.md`](docs/execution-engine.md) | What one vector's execution observes, how each of the seven dimensions is evaluated, and how checks become a verdict. |
+| [`docs/cli.md`](docs/cli.md) | Every command, flag, format and exit code, and why the exit codes are what they are. |
+| [`docs/profile-format.md`](docs/profile-format.md) | The shape of a profile bundle, and what the loader refuses. |
+| [`docs/local-testing.md`](docs/local-testing.md) | Building a contract, running it locally, and what limits a `.wasm` target. |
+| [`docs/testnet-testing.md`](docs/testnet-testing.md) | What this build does with a network target, and why. |
+| [`docs/ci-integration.md`](docs/ci-integration.md) | Gating a pipeline on a conformance result, with a workflow example. |
+| [`docs/certification.md`](docs/certification.md) | What a receipt commits to, and what it does not establish. |
+| [`docs/security.md`](docs/security.md) | What conformance does not prove, and how untrusted input is handled. |
+| [`docs/troubleshooting.md`](docs/troubleshooting.md) | Each failure class, what it means, and what to do about it. |
+
+`CONTRIBUTING.md` describes the workspace, the code standards and how to add an
+assertion dimension. `CHANGELOG.md` carries the versioning policy, including what
+counts as a breaking change for a tool whose output is a verdict.
+
 ## Current status
 
-This repository is under construction, and this section is kept accurate rather than
-aspirational. What exists and is tested today:
+This section is kept accurate rather than aspirational. What exists and is tested today:
 
 | Crate | State |
 | --- | --- |
