@@ -62,13 +62,34 @@ jobs:
       # The package that gets published is the package that was tested. `--locked` keeps
       # the dependency tree exactly as committed, which is the whole reason the lock file
       # is in the repository.
+      #
+      # Packaging rewrites each path dependency into a registry dependency of the same
+      # version, so it can only resolve once that version is on crates.io. On the first
+      # release of a version nothing is, so a crate whose workspace dependency is not yet
+      # published cannot be packaged — which is a fact about the order publishes happen
+      # in, not a defect, and it is reported as such rather than failing the job. Any
+      # other packaging failure still fails it.
       - name: Package every publishable crate
+        shell: bash
         run: |
+          set -euo pipefail
+          awaiting=0
           for crate in estamora-core estamora-profile estamora-vectors \
                        estamora-soroban estamora-assertions estamora-report \
                        estamora-certification estamora-cli; do
-            cargo package --locked -p "$crate"
+            if cargo package --locked -p "$crate" 2> /tmp/package.log; then
+              echo "packaged $crate"
+            elif grep -q 'no matching package named' /tmp/package.log; then
+              echo "::notice::$crate cannot be packaged yet: a workspace dependency of this \
+          version is not on crates.io. It becomes packageable once that crate is published, \
+          which is the order the manual publish follows."
+              awaiting=$((awaiting + 1))
+            else
+              cat /tmp/package.log
+              exit 1
+            fi
           done
+          echo "$awaiting crate(s) await a dependency; the rest are packaged"
 
       - name: Upload the packaged crates
         uses: actions/upload-artifact@v7
