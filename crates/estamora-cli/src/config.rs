@@ -343,8 +343,19 @@ mod tests {
         let checkout = tempfile::tempdir().unwrap();
         let problem = super::resolve_profile(checkout.path(), "nope@9.9").unwrap_err();
         assert_eq!(problem.class(), estamora_core::ErrorClass::ProfileError);
+
+        // The message renders the path in the platform's own form, so the assertion
+        // builds the same path the resolver would rather than spelling it with the
+        // separator of one platform. Both strings come from `display()` on paths built
+        // by the same `join` calls, so they agree everywhere by construction instead of
+        // by the good fortune of the machine the test runs on.
+        //
+        // Naming the whole path is also the stronger claim, and the one the test's name
+        // makes: the message must say where it looked, not merely contain a plausible
+        // suffix.
+        let tried = checkout.path().join("profiles").join("nope").join("9.9");
         assert!(
-            problem.message().contains("profiles/nope/9.9"),
+            problem.message().contains(&tried.display().to_string()),
             "the failure must name the location tried: {}",
             problem.message()
         );
