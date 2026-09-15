@@ -34,7 +34,7 @@ aspirational. What exists and is tested today:
 | --- | --- |
 | `estamora-core` | **Implemented.** The error taxonomy, the six conformance statuses, the rule that reduces vector results to a verdict, and the exit-code contract. |
 | `estamora-soroban` | **Implemented for local execution.** A deterministic host pinned to a declared ledger point, contract registration from WebAssembly or an in-repository fixture, invocation with outcome classification, event capture, and authorization as a scenario property with the demanded authorizations recorded. |
-| `estamora-profile` | **Implemented for the entry point and the method layer.** Loads a bundle, refuses a specification format it cannot execute, refuses a manifest entry that escapes the bundle or a document that is oversized, parses the profile and method documents strictly, and refuses a bundle stored under an identity other than the one it declares. |
+| `estamora-profile` | **Implemented.** Loads a bundle, refuses a specification format it cannot execute, refuses a manifest entry that escapes the bundle or a document that is oversized, parses all six documents into typed structures, checks every cross-reference between them, keeps a valid bundle's warnings rather than discarding them, and refuses a bundle stored under an identity other than the one it declares. |
 
 Nothing in the table below exists yet. It is the intended layout, listed so that the
 boundary between crates is reviewable before the code is written.
@@ -62,16 +62,26 @@ every observation records whether that inspection happened.
 rolled back. That is what makes "a refusal must emit nothing" and "a refusal must not
 mutate state" enforceable requirements rather than aspirations.
 
-### What `estamora-profile` does not yet check
+### What the loader decides, and what it refuses to decide
 
-The authorization, event, behaviour, invariant and failure documents are currently
-checked for **existence only**. Their contents are not parsed, because a typed model for
-them does not exist yet. A profile that is semantically wrong in those documents is caught
-by the specification repository's own validation, not by this runner.
+It decides whether a profile is **executable**: well-formed, complete, self-consistent,
+stored where it says it is, and written against a format this runner understands. A
+broken cross-reference is an error rather than a warning, because a requirement that
+names something the profile does not declare cannot be evaluated, and reporting a verdict
+against a requirement that was silently not applied is the one failure mode this project
+exists to prevent.
 
-That is a recorded gap rather than a decision, and it narrows as each document is
-modelled. It is written down here because a limitation that is only in the code is one
-that a reader of this file will not find.
+It does not decide whether a profile is **correct**. Whether a requirement is complete or
+faithful to its upstream standard is a review question for the specification repository,
+and a runner that second-guessed it would be running a different profile from the one that
+was reviewed.
+
+The runner re-checks what the specification's own validator already checks, deliberately.
+A bundle is consumed by path, and a bundle reached by path may not be the revision that was
+validated — it may be a working copy or a hand-edited fixture. Re-checking is defence in
+depth, and the two cross-repository tests in `crates/estamora-profile/tests/` are what hold
+the two validators in agreement: they load every bundle the specification publishes,
+including the SEP-41 profile, and fail if either side changes shape.
 
 There is no CLI yet, so no command is documented here. Documenting a command that does not
 run would be worse than documenting none.

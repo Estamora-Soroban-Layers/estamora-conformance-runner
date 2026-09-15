@@ -11,6 +11,12 @@ use std::path::{Component, Path, PathBuf};
 use estamora_core::{Diagnostic, Diagnostics, Error, ErrorClass, Result, into_result};
 use serde::de::DeserializeOwned;
 
+use crate::authorization::AuthorizationDocument;
+use crate::behavior::BehaviorDocument;
+use crate::documents::ProfileDocuments;
+use crate::events::EventsDocument;
+use crate::failures::FailuresDocument;
+use crate::invariants::InvariantsDocument;
 use crate::spec::{self, SpecVersion};
 use crate::types::{MethodsDocument, ProfileDocument};
 
@@ -82,14 +88,16 @@ impl fmt::Display for ProfileReference {
 
 /// A loaded profile bundle.
 ///
-/// Holding the parsed entry point and the path together is deliberate: every
-/// other document is resolved relative to the bundle that declared it, so a
-/// bundle cannot be read from one place and its documents from another.
+/// Holding the parsed entry point, the six documents and the path together is
+/// deliberate: every other document is resolved relative to the bundle that
+/// declared it, so a bundle cannot be read from one place and its documents from
+/// another, and a vector cannot be attributed to a profile that was loaded from
+/// somewhere else.
 #[derive(Debug, Clone)]
 pub struct ProfileBundle {
     root: PathBuf,
     document: ProfileDocument,
-    methods: MethodsDocument,
+    documents: ProfileDocuments,
     spec_version: SpecVersion,
     diagnostics: Diagnostics,
 }
@@ -99,11 +107,17 @@ impl ProfileBundle {
     ///
     /// # Errors
     ///
-    /// Returns a profile error if the root is not a directory, if the entry
-    /// point is missing, unreadable, empty, oversized, malformed, or declares a
-    /// document that does not exist, escapes the bundle, or is not a regular
-    /// file. Also returns one if the declared specification-format version is
-    /// not one this runner can execute.
+    /// Returns a profile error if the root is not a directory, if the entry point
+    /// is missing, unreadable, empty, oversized or malformed, if it declares a
+    /// document that does not exist, escapes the bundle or is not a regular file,
+    /// if any of the six documents fails to parse, if any cross-reference between
+    /// them does not resolve, if the declared specification-format version is not
+    /// one this runner can execute, or if the bundle is stored under an identity
+    /// other than the one it declares.
+    ///
+    /// Warnings do not stop the load. They are retained and available through
+    /// [`ProfileBundle::diagnostics`], because a finding that does not prevent
+    /// execution is still something the report should carry.
     pub fn load(root: impl AsRef<Path>) -> Result<Self> {
         let root = root.as_ref().to_path_buf();
         if !root.is_dir() {
@@ -121,41 +135,73 @@ impl ProfileBundle {
         let document: ProfileDocument = read_yaml(&entry, "the profile document")?;
         let spec_version = spec::check(&document.estamora_spec_version)?;
 
+        // Every document is parsed now, not on demand. A bundle that is malformed
+        // must be refused before anything is executed, and a document parsed
+        // lazily is one whose defects surface only once the run has already begun
+        // acting on the profile. The manifest's `files()` accessor is the single
+        // list of what a bundle must declare, so a seventh document cannot be
+        // added to the format and silently skipped here.
+        let manifest = &document.includes;
+        let documents = ProfileDocuments {
+            methods: read_declared::<MethodsDocument>(
+                &root,
+                "methods",
+                &manifest.methods,
+                "the method requirements",
+            )?,
+            authorization: read_declared::<AuthorizationDocument>(
+                &root,
+                "authorization",
+                &manifest.authorization,
+                "the authorization requirements",
+            )?,
+            events: read_declared::<EventsDocument>(
+                &root,
+                "events",
+                &manifest.events,
+                "the event requirements",
+            )?,
+            behavior: read_declared::<BehaviorDocument>(
+                &root,
+                "behavior",
+                &manifest.behavior,
+                "the behavioural rules",
+            )?,
+            invariants: read_declared::<InvariantsDocument>(
+                &root,
+                "invariants",
+                &manifest.invariants,
+                "the invariants",
+            )?,
+            failures: read_declared::<FailuresDocument>(
+                &root,
+                "failures",
+                &manifest.failures,
+                "the failure requirements",
+            )?,
+        };
+
         let mut diagnostics = Diagnostics::new();
-        for (role, file) in document.includes.files() {
-            resolve_document(&root, role, file)?;
-        }
-
-        // The method document is parsed now rather than on demand. A bundle that
-        // is malformed must be refused before anything is executed, and a
-        // document parsed lazily is a document whose defects surface after the
-        // run has already begun.
-        //
-        // The other five documents are checked for existence only, because the
-        // typed model for their contents does not exist yet. That is a limitation
-        // rather than a decision, it is narrowed as each document is modelled,
-        // and it is stated here so that it is a known gap rather than a silent
-        // one: until they are modelled, a profile that is semantically wrong in
-        // those documents is caught by the specification repository's own
-        // validation, not by the runner.
-        let methods: MethodsDocument = read_yaml(
-            &root.join(&document.includes.methods),
-            "the method requirements",
-        )?;
-
         check_layout(&root, &document, &mut diagnostics);
 
-        // A bundle stored under one identity while declaring another is fatal
-        // rather than a warning: a consumer that resolves a profile by path must
-        // not silently execute a different one. Anything left in the collection
-        // at this point is a warning, and a warning is reported rather than
-        // acted on.
+        // Cross-references are checked here rather than left to the
+        // specification repository's validator, because a bundle reached by path
+        // may not be the revision that was validated. A broken reference is an
+        // error rather than a warning: a requirement that names something the
+        // profile does not declare cannot be evaluated, and the runner must not
+        // report a verdict against a requirement it silently did not apply.
+        for finding in documents.validate().findings() {
+            diagnostics.push(finding.clone());
+        }
+
+        // Anything left in the collection at this point is a warning, and a
+        // warning is reported rather than acted on.
         into_result(&diagnostics)?;
 
         Ok(Self {
             root,
             document,
-            methods,
+            documents,
             spec_version,
             diagnostics,
         })
@@ -171,6 +217,12 @@ impl ProfileBundle {
     #[must_use]
     pub fn document(&self) -> &ProfileDocument {
         &self.document
+    }
+
+    /// Every parsed document the bundle declares.
+    #[must_use]
+    pub const fn documents(&self) -> &ProfileDocuments {
+        &self.documents
     }
 
     /// The reference this bundle is named by.
@@ -201,13 +253,33 @@ impl ProfileBundle {
     }
 
     /// The method requirements this bundle declares.
-    ///
-    /// Parsed during [`ProfileBundle::load`], so reaching this point means the
-    /// document was readable and well-formed.
     #[must_use]
     pub const fn methods(&self) -> &MethodsDocument {
-        &self.methods
+        &self.documents.methods
     }
+
+    /// The operation directories the bundle owns vectors for.
+    #[must_use]
+    pub fn vector_directories(&self) -> &[String] {
+        &self.document.includes.vectors
+    }
+
+    /// The shared vector families the bundle consumes.
+    #[must_use]
+    pub fn shared_vector_families(&self) -> &[String] {
+        &self.document.includes.shared_vectors
+    }
+}
+
+/// Resolves a declared document and parses it.
+fn read_declared<T: DeserializeOwned>(
+    root: &Path,
+    role: &str,
+    file: &str,
+    what: &str,
+) -> Result<T> {
+    let path = resolve_document(root, role, file)?;
+    read_yaml(&path, what)
 }
 
 /// Resolves one manifest entry, refusing anything that leaves the bundle.

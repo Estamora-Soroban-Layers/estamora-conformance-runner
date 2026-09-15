@@ -12,6 +12,9 @@
 //!    Six statuses, whose spelling is a contract with the specification layer's
 //!    report schema, and one rule that reduces a set of vector results to a
 //!    status and a status to a process exit code.
+//! 3. **What a requirement is written in** ([`expr`]). The expression algebra
+//!    shared by profile documents and vectors, chosen so that a requirement is
+//!    always data to be evaluated rather than code to be run.
 //!
 //! Nothing here knows about Soroban, about files, or about the network. That is
 //! deliberate: these are the types a test can pin exhaustively, so the semantics
@@ -20,9 +23,11 @@
 #![forbid(unsafe_code)]
 
 pub mod errors;
+pub mod expr;
 pub mod outcomes;
 
 pub use errors::{
     Blame, Diagnostic, Diagnostics, Error, ErrorClass, Result, Severity, into_result,
 };
+pub use expr::{ArithmeticOp, DeltaDirection, Literal, Predicate, ValueExpr};
 pub use outcomes::{AssertionStatus, ConformanceStatus, ExitCode, RunTally, VectorStatus};
