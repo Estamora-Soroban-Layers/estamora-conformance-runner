@@ -1,0 +1,20 @@
+# Cargo configuration for the workspace.
+#
+# Kept deliberately small. Everything here is either required to build the
+# contract fixtures or a network-retry setting that makes a flaky CI connection a
+# retry rather than a spurious NETWORK_ERROR.
+
+[net]
+# The runner's dependency tree is large and CI runs against a cold cache. Three
+# attempts turns a transient failure into a slow build instead of a red job.
+retry = 3
+
+[build]
+# Incremental compilation is off for release artefacts (see the profile in
+# Cargo.toml) and on for development builds, which is Cargo's default. It is
+# stated here so that a reader does not have to infer it.
+
+[term]
+# Colour is decided by the terminal, and the CLI additionally honours NO_COLOR.
+# Nothing in the runner ever writes an ANSI escape into a report.
+color = "auto"
