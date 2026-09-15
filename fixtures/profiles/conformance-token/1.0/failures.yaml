@@ -1,0 +1,78 @@
+# yaml-language-server: $schema=../../../../../estamora-conformance-spec/schema/failure.schema.json
+failures:
+  - id: missing-transfer-authorization
+    category: missing_authorization
+    summary: A transfer with no authorization from the debited account must be refused.
+    description: >-
+      The call must fail and nothing may move. Because this interface defines no error
+      codes, the requirement is semantic: the runner does not assert a payload, only that
+      the call did not succeed and that the state is unchanged.
+    methods:
+      - transfer
+    trigger: The account named in `from` has supplied no authorization for the invocation.
+    expected:
+      outcome: failure
+      signal: either
+      state_effect: unchanged
+      events_emitted: none
+    error_codes:
+      policy: semantic_only
+      allowed: []
+    rationale: >-
+      A contract that moves the value and reports success without consulting authorization
+      is indistinguishable from a correct one under a positive-only suite, which is the gap
+      this requirement closes.
+    references:
+      - https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec
+
+  - id: wrong-transfer-actor
+    category: wrong_actor
+    summary: A transfer authorized by a different account must be refused.
+    description: >-
+      The invocation carries a valid authorization, but it belongs to an account other than
+      the one named in `from`. This is the case a contract fails when it verifies that *a*
+      signature is present without verifying whose it is.
+    methods:
+      - transfer
+    trigger: The authorization presented belongs to an account other than the `from` argument.
+    expected:
+      outcome: failure
+      signal: either
+      state_effect: unchanged
+      events_emitted: none
+    error_codes:
+      policy: semantic_only
+      allowed: []
+    rationale: >-
+      Separating this from missing authorization is what makes the authorization model
+      useful. A single "unauthorized" category cannot tell a reader whether the contract
+      checked the actor or merely the presence of a signature, and the second mistake is
+      the one that loses funds.
+    references:
+      - https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec
+
+  - id: insufficient-transfer-balance
+    category: insufficient_balance
+    summary: A transfer above the sender's balance must be refused.
+    description: >-
+      The requested amount exceeds what the debited account holds. The contract must not
+      settle the call, must not leave either balance changed, and must not report success
+      for a movement it did not make.
+    methods:
+      - transfer
+    trigger: The `amount` argument is greater than the balance held by the `from` argument.
+    expected:
+      outcome: failure
+      signal: either
+      state_effect: unchanged
+      events_emitted: none
+    error_codes:
+      policy: semantic_only
+      allowed: []
+    rationale: >-
+      The interface offers no credit, so a contract that settles an over-balance transfer
+      has created value from nothing and left an account it cannot represent. The
+      distinction from an authorization failure is what tells a reader whether the contract
+      enforced the balance or merely enforced the signature.
+    references:
+      - https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec

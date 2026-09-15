@@ -1,0 +1,93 @@
+# yaml-language-server: $schema=../../../../../estamora-conformance-spec/schema/method.schema.json
+methods:
+  - id: transfer
+    name: transfer
+    requirement: required
+    summary: Move an exact quantity of tokens from one account to another.
+    description: >-
+      The call must be authorized by the account named in `from`, the amount debited
+      must equal the amount credited, and the whole movement must be announced by one
+      transfer event. Clamping, rounding, a fee deducted silently and a partial credit
+      are all violations, and none of them is visible from the call's own success.
+    args:
+      - name: from
+        type:
+          kind: prim
+          name: address
+        semantics: The account debited, and the account that must authorize the call.
+        authorization:
+          required: true
+          semantics: >-
+            The address supplied here must hold token-level authorization for this
+            invocation. A signature from any other account does not satisfy the
+            requirement, because the debit changes this account's balance.
+      - name: to
+        type:
+          kind: prim
+          name: muxed_address
+        semantics: The account credited. A multiplexed destination must be accepted.
+      - name: amount
+        type:
+          kind: prim
+          name: i128
+        semantics: The exact quantity to move. A negative amount is invalid.
+    returns:
+      type:
+        kind: prim
+        name: void
+      semantics: No value is returned; the effect is observable through the balances and the event.
+    mutability: mutating
+    invocation: invoke
+    authorization:
+      - sender-authorizes-transfer
+    events:
+      - transfer
+    failures:
+      - missing-transfer-authorization
+      - wrong-transfer-actor
+      - insufficient-transfer-balance
+    behaviors:
+      - transfer-moves-the-exact-amount
+      - transfer-beyond-the-balance-fails
+    notes:
+      - >-
+        The method is not idempotent: two identical successful calls move the amount
+        twice, which is why the event's correlation to the balance delta matters.
+
+  - id: balance
+    name: balance
+    requirement: required
+    summary: Report the balance held by an address.
+    description: >-
+      A read-only query. It must never fail for a syntactically valid address, including
+      one that has never held anything, which must report zero rather than trapping or
+      returning an absent value.
+    args:
+      - name: address
+        type:
+          kind: prim
+          name: address
+        semantics: The account whose balance is read. Any account may read any balance.
+        authorization:
+          required: false
+          semantics: >-
+            Reading a balance is public information. Requiring authorization would make
+            an account's balance unreadable by anyone but its holder, which would break
+            every consumer that indexes the token.
+    returns:
+      type:
+        kind: prim
+        name: i128
+      semantics: The exact balance held by the address, or zero when it holds none.
+    mutability: readonly
+    invocation: read_only
+    authorization:
+      - balance-needs-no-authorization
+    events: []
+    failures: []
+    behaviors: []
+    notes:
+      - >-
+        The parameter is named `address` because that is what the interface declares.
+        The name is compared positionally by the interface dimension, so a contract that
+        named it `who` still conforms: only the type and the arity are required.

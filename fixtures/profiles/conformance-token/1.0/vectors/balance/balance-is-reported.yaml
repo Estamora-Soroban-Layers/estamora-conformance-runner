@@ -1,0 +1,81 @@
+# yaml-language-server: $schema=../../../../../../../estamora-conformance-spec/schema/vector.schema.json
+id: balance-is-reported
+profile: conformance-token
+profile_version: "1.0"
+title: A funded balance is reported exactly and without any authorization
+description: >-
+  Alice holds 1000 and the vector reads her balance with nothing signed. The call must
+  return exactly 1000. The vector exists in the corpus for two reasons: a read that
+  demanded authorization would break every indexer that consumes the token, and a balance
+  accessor that returned a rounded, capped or cached value is a defect no mutating vector
+  can see.
+kind: positive
+method: balance
+tags: [balance, positive, read-only]
+
+fixtures:
+  actors:
+    - name: alice
+      kind: account
+      description: The holder whose balance is read.
+    - name: bob
+      kind: account
+      description: An account that holds nothing, which must read as zero.
+  balances:
+    alice: "1000"
+    bob: "0"
+  allowances: []
+  total_supply: "1000"
+  ledger:
+    sequence: 1000
+    timestamp: "2026-01-15T12:00:00Z"
+  authorization:
+    alice: true
+
+inputs:
+  address:
+    kind: actor
+    ref: alice
+
+authorization:
+  actors: []
+  expected: not_required
+
+expected:
+  outcome: success
+  returns:
+    kind: literal
+    value: "1000"
+  state_assertions:
+    - id: balance-unchanged
+      description: A read must leave the balance it read exactly as it found it.
+      resource:
+        kind: balance
+        account: alice
+      predicate:
+        kind: equal
+        left:
+          kind: read
+          method: balance
+          args:
+            - kind: actor
+              ref: alice
+        right:
+          kind: literal
+          value: "1000"
+  events:
+    required: []
+    forbidden: [transfer]
+  invariants:
+    - balances-are-non-negative
+
+assertions: []
+
+rationale: >-
+  `expected: not_required` is a claim in its own right rather than an absence of one: the
+  authorization rule for `balance` states that no principal may be asked to sign, and a
+  contract that demands a signature to read a public balance fails it. The state assertion
+  is not redundant with the return value, because a contract that returns the right number
+  and rewrites the entry it read it from would satisfy the return check alone.
+references:
+  - https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec

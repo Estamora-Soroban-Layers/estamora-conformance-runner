@@ -1,0 +1,78 @@
+# yaml-language-server: $schema=../../../../../estamora-conformance-spec/schema/invariant.schema.json
+invariants:
+  - id: balances-are-conserved-by-transfer
+    title: Transfers conserve the total of all balances
+    kind: conservation
+    severity: error
+    summary: Moving value between holders must not change the sum of all balances.
+    description: >-
+      The sum is taken across the whole fixture balance set rather than across the two
+      accounts the operation names. That makes the invariant sensitive to a contract that
+      credits a third account, mints on transfer, or rounds a remainder into a fee address,
+      none of which a pairwise check would notice.
+    scope:
+      methods:
+        - transfer
+      outcomes:
+        - success
+    resource: balances
+    rationale: >-
+      A token whose supply drifts on ordinary transfers has a silently inflating or
+      deflating supply. Every balance shown to a user becomes wrong in aggregate even though
+      each individual transfer looks correct, and the error is invisible until someone
+      reconciles the ledger.
+    references:
+      - https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec
+
+  - id: balances-are-non-negative
+    title: No balance is ever negative
+    kind: bounds
+    severity: error
+    summary: Every account's balance must be greater than or equal to zero.
+    description: >-
+      Evaluated once against each member of the balance set. A negative balance means value
+      moved out of an account that did not have it, which is the arithmetic signature of an
+      unchecked subtraction or of a missing balance check.
+    scope:
+      methods:
+        - transfer
+      outcomes:
+        - success
+        - failure
+    resource: balances
+    predicate:
+      kind: greater_or_equal
+      left:
+        kind: resource_member
+      right:
+        kind: literal
+        value: "0"
+    rationale: >-
+      A balance is not representable below zero in the fixture's own model, so a contract
+      that produces one cannot be verified at all: every later assertion is evaluated
+      against a state the model cannot express. The check is therefore a precondition for
+      trusting any other result about the contract.
+    references:
+      - https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec
+
+  - id: failed-transfer-cannot-mutate
+    title: A refused transfer leaves no trace
+    kind: state_unchanged
+    severity: error
+    summary: When a transfer is refused, the contract state must be exactly as it was.
+    description: >-
+      Scoped to the failure outcome of `transfer`, so a contract cannot satisfy it by never
+      failing. A contract that performs the debit and then reports a failure has in practice
+      moved the value while telling the caller it did not, and every consumer that trusts the
+      error path reconstructs a different ledger from the contract's own.
+    scope:
+      methods:
+        - transfer
+      outcomes:
+        - failure
+    rationale: >-
+      A partially applied operation is worse than a refused one, because the caller cannot
+      tell what happened and cannot safely retry. It also lets an attacker probe for
+      asymmetric failures that leave the contract in a state favourable to them.
+    references:
+      - https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec

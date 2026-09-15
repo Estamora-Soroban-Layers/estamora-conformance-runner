@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=../../../../../estamora-conformance-spec/schema/event.schema.json
+events:
+  - id: transfer
+    name: transfer
+    requirement: required
+    summary: Exactly one transfer event must describe a successful value movement.
+    description: >-
+      Consumers reconstruct balances from this event, so a transfer that settles without
+      emitting it, emits it twice, or states an amount that disagrees with the balance
+      change leaves every downstream indexer wrong while the contract's own state is
+      correct. The amount is bound to the operation's `amount` argument rather than to a
+      literal, so the requirement holds whatever a vector transfers.
+    occurrence: on_success
+    topics:
+      - index: 0
+        type:
+          kind: prim
+          name: symbol
+        binding:
+          kind: literal
+          value: transfer
+        semantics: The event discriminator, which fixes the event's name.
+      - index: 1
+        type:
+          kind: prim
+          name: address
+        binding:
+          kind: input
+          name: from
+        semantics: The account the tokens were drawn from, which must be the debited account.
+      - index: 2
+        type:
+          kind: prim
+          name: address
+        binding:
+          kind: input
+          name: to
+        semantics: The account that received the tokens, which must be the credited account.
+    data:
+      format: scalar
+      fields:
+        - name: amount
+          type:
+            kind: prim
+            name: i128
+          binding:
+            kind: input
+            name: amount
+          semantics: The moved quantity, which must equal the observed balance delta.
+          optional: false
+    cardinality:
+      min: 1
+      max: 1
+    ordering: []
+    correlations:
+      - balances-are-conserved-by-transfer
+    notes:
+      - >-
+        `on_success` rather than `always`, so the requirement is evaluated on the vectors
+        where a movement happened. It is stated even though Soroban rolls a refused call's
+        events back with the invocation, because a profile that omitted it would accept a
+        contract that emits nothing at all.
+      - >-
+        The data format is fixed as a scalar. This interface carries one data field, so
+        accepting a second encoding would make the event ambiguous for a consumer that has
+        to parse it.

@@ -1,0 +1,115 @@
+# yaml-language-server: $schema=../../../../../../../estamora-conformance-spec/schema/vector.schema.json
+id: transfer-moves-the-exact-amount
+profile: conformance-token
+profile_version: "1.0"
+title: A funded transfer debits the sender and credits the recipient by the exact amount
+description: >-
+  Alice holds 1000 and Bob holds 500. Alice transfers 250. Both balances must move by
+  exactly 250, the call must succeed, and one transfer event must state the same amount.
+  The vector is the positive half of the corpus: it is what a contract must satisfy, not
+  merely what it must refuse.
+kind: positive
+method: transfer
+tags: [transfer, positive, state, events]
+
+fixtures:
+  actors:
+    - name: alice
+      kind: account
+      description: The account debited, and the one whose authorization the rule requires.
+    - name: bob
+      kind: account
+      description: The account credited.
+  balances:
+    alice: "1000"
+    bob: "500"
+  allowances: []
+  total_supply: "1500"
+  ledger:
+    sequence: 1000
+    timestamp: "2026-01-15T12:00:00Z"
+  authorization:
+    alice: true
+
+inputs:
+  from:
+    kind: actor
+    ref: alice
+  to:
+    kind: actor
+    ref: bob
+  amount:
+    kind: literal
+    value: "250"
+
+authorization:
+  actors: [alice]
+  expected: accepted
+
+expected:
+  outcome: success
+  state_assertions:
+    - id: sender-debited
+      description: The sender must lose exactly the transferred quantity.
+      resource:
+        kind: balance
+        account: alice
+      predicate:
+        kind: equal
+        left:
+          kind: read
+          method: balance
+          args:
+            - kind: actor
+              ref: alice
+        right:
+          kind: literal
+          value: "750"
+    - id: recipient-credited
+      description: The recipient must gain exactly the transferred quantity.
+      resource:
+        kind: balance
+        account: bob
+      predicate:
+        kind: equal
+        left:
+          kind: read
+          method: balance
+          args:
+            - kind: actor
+              ref: bob
+        right:
+          kind: literal
+          value: "750"
+  events:
+    required:
+      - event: transfer
+        topics:
+          - kind: literal
+            value: transfer
+          - kind: actor
+            ref: alice
+          - kind: actor
+            ref: bob
+        data:
+          - kind: literal
+            value: "250"
+    forbidden: []
+    # Nothing is forbidden on a successful transfer: the event above is required, and a
+    # vector that forbade it would contradict itself. The empty list is stated rather
+    # than omitted so that "no forbidden events" is a decision in the document.
+  invariants:
+    - balances-are-conserved-by-transfer
+    - balances-are-non-negative
+
+assertions: []
+
+rationale: >-
+  The two deltas are stated separately because either one alone can be satisfied by a
+  contract that is wrong about the other. A contract that debits 250 and credits 249
+  satisfies the sender's assertion and satisfies a weaker "the recipient increased"
+  assertion; only both, with the same magnitude, establish that the movement was whole.
+  The event's data is bound to the same literal, so a contract whose event disagrees with
+  the movement it made is caught even though its own state is correct.
+references:
+  - https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec

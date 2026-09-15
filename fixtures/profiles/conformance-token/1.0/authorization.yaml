@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=../../../../../estamora-conformance-spec/schema/authorization.schema.json
+authorization_rules:
+  - id: sender-authorizes-transfer
+    summary: A transfer must be authorized by the debited account, over the `from` argument.
+    description: >-
+      The rule keeps three outcomes apart rather than one. An authorized caller succeeds;
+      a caller who supplies nothing is rejected as missing authorization; a caller whose
+      valid signature belongs to a different account is rejected as a wrong actor.
+      Collapsing the last two into "the call failed" would hide the case where a contract
+      checks that some signature is present without checking whose it is — the mistake
+      that moves value out of an account that never authorized the movement.
+    methods:
+      - transfer
+    actor:
+      kind: argument
+      argument: from
+      on_behalf_of: false
+    coverage:
+      mode: exact
+      arguments:
+        - from
+    unauthorized:
+      kind: fail
+      failure: missing-transfer-authorization
+    wrong_actor:
+      kind: fail
+      failure: wrong-transfer-actor
+    replay_sensitive: false
+    notes:
+      - >-
+        `on_behalf_of` is false because the account that must authorize is also the
+        account whose balance changes. A delegated transfer would set it true and would
+        need its own rule naming both principals.
+      - >-
+        Coverage is `exact` over `from` alone. `amount` is deliberately outside the
+        authorization envelope, matching the interface, which binds the signature to the
+        account rather than to the quantity.
+      - >-
+        The rule is not replay sensitive. Two identical transfers move the quantity
+        twice rather than the second being rejected as a replay, which is a property of
+        the interface and not a defect.
+
+  - id: balance-needs-no-authorization
+    summary: Reading a balance must be possible without any authorization.
+    description: >-
+      The rule states the absence of an authorization requirement rather than leaving it
+      unstated. A contract that demands authorization to read a balance fails this rule,
+      and that failure is distinguishable from a contract whose profile declared nothing.
+    methods:
+      - balance
+    actor:
+      kind: none
+    coverage:
+      mode: at_most
+      arguments: []
+    unauthorized:
+      kind: succeed
+    wrong_actor:
+      kind: succeed
+    replay_sensitive: false
+    notes:
+      - >-
+        `at_most` with an empty argument set is the encoding of "the contract must not
+        demand authorization over any argument"; `exact` is reserved for a rule that
+        names what its actor must cover, and the schema rejects an empty `exact` set.
+      - >-
+        `wrong_actor` is `succeed` because the rule has no actor to get wrong: with no
+        authorization in play there is no principal whose signature could belong to
+        somebody else.

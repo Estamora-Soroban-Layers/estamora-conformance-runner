@@ -1,0 +1,94 @@
+# yaml-language-server: $schema=../../../../../../../estamora-conformance-spec/schema/vector.schema.json
+id: transfer-beyond-the-balance-fails
+profile: conformance-token
+profile_version: "1.0"
+title: A transfer above the sender's balance must be refused
+description: >-
+  Alice holds 1000 and attempts to transfer 2500. The call must be refused, neither
+  balance may change, and no transfer event may appear. A contract that settles the call
+  has produced a negative balance, which is value it created and cannot account for, and
+  every later read of that account reports a quantity the interface does not have.
+kind: negative
+method: transfer
+tags: [transfer, negative, failure, state]
+
+fixtures:
+  actors:
+    - name: alice
+      kind: account
+      description: The account whose balance is exceeded by the request.
+    - name: bob
+      kind: account
+      description: The intended recipient, who must receive nothing.
+  balances:
+    alice: "1000"
+    bob: "500"
+  allowances: []
+  total_supply: "1500"
+  ledger:
+    sequence: 1000
+    timestamp: "2026-01-15T12:00:00Z"
+  authorization:
+    alice: true
+
+inputs:
+  from:
+    kind: actor
+    ref: alice
+  to:
+    kind: actor
+    ref: bob
+  amount:
+    kind: literal
+    value: "2500"
+
+authorization:
+  actors: [alice]
+  expected: accepted
+
+expected:
+  outcome: failure
+  failure: insufficient-transfer-balance
+  state_assertions:
+    - id: sender-unchanged
+      description: A refused transfer must not debit the sender.
+      resource:
+        kind: balance
+        account: alice
+      predicate:
+        kind: unchanged
+        target:
+          kind: read
+          method: balance
+          args:
+            - kind: actor
+              ref: alice
+    - id: recipient-unchanged
+      description: A refused transfer must not credit the recipient.
+      resource:
+        kind: balance
+        account: bob
+      predicate:
+        kind: unchanged
+        target:
+          kind: read
+          method: balance
+          args:
+            - kind: actor
+              ref: bob
+  events:
+    required: []
+    forbidden: [transfer]
+  invariants:
+    - failed-transfer-cannot-mutate
+    - balances-are-non-negative
+
+assertions: []
+
+rationale: >-
+  The authorization is granted, so a refusal cannot be attributed to a missing signature
+  and the vector isolates the balance check. That distinction is the whole point of
+  stating `expected: accepted` on a vector that must fail: without it, a contract that
+  refuses every call would satisfy this vector by never reaching the arithmetic.
+references:
+  - https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec

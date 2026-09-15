@@ -1,0 +1,96 @@
+# yaml-language-server: $schema=../../../../../../../estamora-conformance-spec/schema/vector.schema.json
+id: transfer-without-authorization-fails
+profile: conformance-token
+profile_version: "1.0"
+title: A transfer that nobody authorized must be refused
+description: >-
+  Alice holds 1000. Bob attempts to move 250 out of her balance, and no authorization is
+  supplied at all. The call must be refused and no value may move. This is the vector
+  that separates a token from an open faucet, and it is stated with no signer rather than
+  with the wrong signer so that a contract checking only that *some* authorization payload
+  exists is caught by the wrong-actor vector rather than passing here.
+kind: authorization
+method: transfer
+tags: [transfer, authorization, negative]
+
+fixtures:
+  actors:
+    - name: alice
+      kind: account
+      description: The holder whose balance is the target of the unauthorized attempt.
+    - name: bob
+      kind: account
+      description: The caller attempting to move value it does not control.
+  balances:
+    alice: "1000"
+    bob: "0"
+  allowances: []
+  total_supply: "1000"
+  ledger:
+    sequence: 1000
+    timestamp: "2026-01-15T12:00:00Z"
+  authorization:
+    alice: true
+    bob: true
+
+inputs:
+  from:
+    kind: actor
+    ref: alice
+  to:
+    kind: actor
+    ref: bob
+  amount:
+    kind: literal
+    value: "250"
+
+authorization:
+  actors: []
+  expected: rejected
+
+expected:
+  outcome: failure
+  failure: missing-transfer-authorization
+  state_assertions:
+    - id: holder-unchanged
+      description: An unauthorized transfer must not move the holder's balance.
+      resource:
+        kind: balance
+        account: alice
+      predicate:
+        kind: unchanged
+        target:
+          kind: read
+          method: balance
+          args:
+            - kind: actor
+              ref: alice
+    - id: caller-gains-nothing
+      description: An unauthorized transfer must not credit the caller.
+      resource:
+        kind: balance
+        account: bob
+      predicate:
+        kind: unchanged
+        target:
+          kind: read
+          method: balance
+          args:
+            - kind: actor
+              ref: bob
+  events:
+    required: []
+    forbidden: [transfer]
+  invariants:
+    - failed-transfer-cannot-mutate
+
+assertions: []
+
+rationale: >-
+  The fixture declares authorization for both accounts in its ledger, and the plan grants
+  none of it. The two fields mean different things and the vector needs both: the ledger
+  says which accounts exist and are capable of signing, and the plan says which of them
+  actually signed. A vector that withheld the account from the ledger could not distinguish
+  a contract that refused the call from one that could not have accepted it.
+references:
+  - https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec
