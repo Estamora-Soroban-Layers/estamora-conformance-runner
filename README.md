@@ -17,7 +17,7 @@ Estamora is exactly two repositories.
 
 | Repository | Owns |
 | --- | --- |
-| [`estamora-conformance-spec`](https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec) | What conformance *means*: profiles, vectors, schemas and the validation tooling |
+| [`estamora-conformance-spec`](https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec) — [read it](https://estamora-soroban-layers.github.io/estamora-conformance-spec/) | What conformance *means*: profiles, vectors, schemas and the validation tooling |
 | `estamora-conformance-runner` (this repository) | Measuring a contract against those requirements and reporting the result |
 
 The specification repository is normative. This repository contains no requirements of its
