@@ -20,5 +20,12 @@
 //! requirements that were partly ignored is worse than no verdict at all.
 #![forbid(unsafe_code)]
 pub mod spec;
+pub mod types;
 
 pub use spec::{SUPPORTED_SPEC_VERSION, SpecVersion};
+pub use types::{
+    ArgumentAuthorization, BundleManifest, Compatibility, InterfaceCoverage, Invocation,
+    MethodArgument, MethodDefinition, MethodReturn, MethodsDocument, Mutability, PrimitiveType,
+    ProfileDocument, ProfileMetadata, ProfileStatus, Provenance, ProvenanceSource,
+    RequirementStatus, SpecificationReference, TypeExpr, UpstreamStatus,
+};
