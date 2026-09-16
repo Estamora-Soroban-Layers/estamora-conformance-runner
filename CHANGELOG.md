@@ -57,11 +57,21 @@ incorrect verdict is fixed rather than preserved.
   — two reads and two writes for a transfer, which is the arithmetic the operation requires —
   and what a *deployment* pays for is the size of the code that performs them.
 
-  `examples/testnet-contract/costs.json` is unchanged and still correct. That capture measures
-  a **deployed** contract, and the deployment it names was built from the earlier source, so
-  re-running the measurement reports the deployment and not this tree. Making the committed
-  artifact and the deployed one the same bytes again means redeploying;
-  `examples/testnet-contract/README.md` records both digests until that happens.
+  The example token was **redeployed** from this source, so the capture and the deployment name
+  the same bytes again. `examples/testnet-contract/costs.json` and `report.json` were both
+  re-measured against the new deployment, and the report's `target.wasm_hash` is
+  `5cbcc4ab…9f8707cc` — the digest of the artifact this tree commits, which is what
+  `the_committed_network_measurement_reads_re_renders_and_agrees_with_the_artifact` asserts and
+  what a report is worth nothing without.
+
+  The re-measurement is also the second reading of the claim above, taken through the network
+  rather than in the local host. Per-call figures moved by a few dozen instructions in either
+  direction and the resource fees by a handful of stroops — ledger state, not code — while the
+  artifact that is deployed is 115 bytes smaller than the one it replaced. A call costs what its
+  reads and writes cost; a deployment costs the size of the code that performs them.
+
+  `examples/testnet-contract/README.md` records all three deployments: the two superseded ones by
+  identifier and digest, and the current pairing.
 
 ## [0.1.3] - 2026-09-15
 
