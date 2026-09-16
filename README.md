@@ -9,6 +9,7 @@
 [![Product pitch](https://img.shields.io/badge/watch-5--minute%20pitch-blueviolet)](https://estamora-docs.vercel.app/assets/estamora-pitch.mp4)
 [![Measured on testnet](https://img.shields.io/badge/measured%20on-testnet-steelblue)](examples/testnet-contract/README.md)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Contributors](https://img.shields.io/github/contributors/Estamora-Soroban-Layers/estamora-conformance-runner)](https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/graphs/contributors)
 
 **[Watch the five-minute product pitch](https://estamora-docs.vercel.app/assets/estamora-pitch.mp4)**
 — it includes a real run of this binary, captured from the release build rather than staged. It is
