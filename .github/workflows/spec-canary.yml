@@ -1,0 +1,113 @@
+name: Specification canary
+
+# The suite in `ci.yml` measures this runner against a *released* revision of the
+# specification, pinned by `ref`. That is deliberate, and the reasons are in the comment
+# beside the pin: a change to another repository must not be able to turn this repository's
+# CI red, and the revision a profile was read from has to be a revision rather than a branch.
+#
+# Pinning has a cost, and this workflow is where it is paid. Nothing in the ordinary suite
+# would notice that `estamora-conformance-spec` had renamed a document, tightened a schema or
+# published a profile this runner cannot execute, because every job would still be reading
+# the tag it pinned. The pin would go stale in silence, which is the same failure as an
+# unpinned checkout — just slower and harder to attribute.
+#
+# So this job does the thing `ci.yml` refuses to do: it checks the specification out at its
+# default branch and runs the tests that read a real profile out of a real bundle. A failure
+# here means one of two things, and the summary below says which, because they are not the
+# same problem and they do not belong to the same person:
+#
+#   * the specification changed in a way this runner has to follow — a new profile, a
+#     renamed document, a schema this runner's parser does not accept; or
+#   * this runner has a defect that a revision other than the pinned one reveals, which is
+#     the case the pin was hiding.
+#
+# It is a schedule rather than a pull-request trigger because it is the only job in this
+# repository whose failure is not caused by the change under review. Making it gate a pull
+# request would reintroduce exactly the coupling the pin removes.
+
+on:
+  schedule:
+    # Weekly. The specification is a data repository that changes when somebody proposes or
+    # corrects a requirement, which is not an hourly event, and a canary nobody reads is a
+    # canary that does not exist.
+    - cron: "41 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: spec-canary-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  ESTAMORA_SPEC_REPO: ${{ github.workspace }}/estamora-conformance-spec
+
+jobs:
+  against-the-specifications-main:
+    name: the suite against the specification's main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # No `ref`. That is the whole difference between this job and the one in `ci.yml`, and
+      # it is stated here rather than left to a reader to notice the absence of a line.
+      - name: Check out the specification repository's default branch
+        uses: actions/checkout@v7
+        with:
+          repository: Estamora-Soroban-Layers/estamora-conformance-spec
+          path: estamora-conformance-spec
+
+      # The two revisions are recorded before anything is asserted, so that a failure names
+      # the pair it happened between. A canary that reports "something broke" is a canary
+      # whose result has to be reproduced by hand before it can be acted on.
+      - name: Record the pair of revisions under test
+        run: |
+          echo "runner revision:        $(git rev-parse HEAD)"
+          echo "specification revision: $(git -C estamora-conformance-spec rev-parse HEAD)"
+          {
+            echo "## Specification canary"
+            echo
+            echo "| Repository | Revision |"
+            echo "| --- | --- |"
+            echo "| estamora-conformance-runner | \`$(git rev-parse HEAD)\` |"
+            echo "| estamora-conformance-spec | \`$(git -C estamora-conformance-spec rev-parse HEAD)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      # The cross-repository tests. They are `#[ignore]`d in the workspace so that a checkout
+      # without the specification still has a green suite, and this is the step that runs
+      # them — the same step `ci.yml` runs, against a different revision.
+      - name: Cross-repository conformance
+        run: cargo test --workspace --locked -- --ignored
+
+      # A profile that validates but cannot be executed is not usable, and the suite in
+      # `ci.yml` checks the two separately against the pin. Running both here is what turns
+      # "the pin is stale" into a statement about a named document.
+      - name: Validate SEP-41 from the specification's main
+        run: |
+          set -euo pipefail
+          cargo run --quiet -p estamora-cli -- --spec ./estamora-conformance-spec validate --profile sep-41@1.0
+
+      # The pin is a line in `ci.yml`, so drift is reported against the line rather than
+      # described. A reader who opens a failed canary wants to know what to set `ref` to, and
+      # the answer is the revision of the specification their profile actually needs.
+      - name: Say what to do about it
+        if: failure()
+        run: |
+          {
+            echo
+            echo "### What this failure means"
+            echo
+            echo "The suite did not pass against \`estamora-conformance-spec@main\`."
+            echo
+            echo "1. Decide whether the specification change is one the runner must follow."
+            echo "   If it is, fix the runner here."
+            echo "2. Then move the pin in \`.github/workflows/ci.yml\` and"
+            echo "   \`.github/workflows/integration.yml\` to the release tag that carries it."
+            echo "3. If instead the specification regressed, the defect is in"
+            echo "   \`estamora-conformance-spec\` and this runner is reporting it correctly."
+          } >> "$GITHUB_STEP_SUMMARY"

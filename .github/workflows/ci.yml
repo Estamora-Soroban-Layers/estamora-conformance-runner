@@ -45,9 +45,23 @@ jobs:
 
       # The specification repository, checked out beside this one. The
       # cross-repository tests read it and skip themselves without it, so this step
-      # is what turns "skipped" into "checked". It is not pinned to a moving branch:
-      # which revision of which profile a verdict was produced against is part of
-      # what the verdict means.
+      # is what turns "skipped" into "checked".
+      #
+      # `ref` pins a *released* revision rather than taking the default branch, which is
+      # what the rest of this comment claimed and the step did not do. Given only a
+      # `repository`, `actions/checkout` checks that repository's default branch out — a
+      # moving target. Two things followed from that, and both are the ones this project
+      # exists to prevent. A commit to `estamora-conformance-spec` could turn this
+      # repository's CI red without anything here changing, which is how a job teaches its
+      # readers to ignore it. And "which revision of which profile a verdict was produced
+      # against" — the identity this runner puts in every report — was `main`, which names
+      # no revision at all.
+      #
+      # The pin is a release tag, because a tag is the unit the specification repository
+      # publishes and the revision its own `CHANGELOG.md` accounts for. Nothing in this
+      # repository tracks the specification's `main`; a change there is meant to be
+      # discovered deliberately, by `.github/workflows/spec-canary.yml`, rather than as an
+      # unrelated failure here.
       # Checked out *inside* the workspace rather than beside it: `actions/checkout`
       # resolves `path` against the workspace and a path outside it is not portable
       # across the hosted runners. `ESTAMORA_SPEC_REPO` is what tells the runner where
@@ -56,6 +70,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: Estamora-Soroban-Layers/estamora-conformance-spec
+          ref: v0.1.1
           path: estamora-conformance-spec
 
       - name: Install the pinned toolchain
@@ -97,6 +112,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: Estamora-Soroban-Layers/estamora-conformance-spec
+          ref: v0.1.1
           path: estamora-conformance-spec
 
       - name: Cache

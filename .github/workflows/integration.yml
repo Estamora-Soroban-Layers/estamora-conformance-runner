@@ -47,6 +47,13 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: Estamora-Soroban-Layers/estamora-conformance-spec
+          # Pinned for the same reason `ci.yml` pins it: an unpinned checkout makes the
+          # specification repository's default branch the thing this suite measures
+          # against, so a commit over there turns a job over here red and the revision a
+          # profile was read from is `main`, which names nothing. `v0.1.1` is the released
+          # revision, and `.github/workflows/spec-canary.yml` is where drift from it is
+          # meant to be found.
+          ref: v0.1.1
           path: estamora-conformance-spec
 
       - name: Cache
@@ -87,6 +94,13 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: Estamora-Soroban-Layers/estamora-conformance-spec
+          # Pinned for the same reason `ci.yml` pins it: an unpinned checkout makes the
+          # specification repository's default branch the thing this suite measures
+          # against, so a commit over there turns a job over here red and the revision a
+          # profile was read from is `main`, which names nothing. `v0.1.1` is the released
+          # revision, and `.github/workflows/spec-canary.yml` is where drift from it is
+          # meant to be found.
+          ref: v0.1.1
           path: estamora-conformance-spec
 
       - name: Cache
