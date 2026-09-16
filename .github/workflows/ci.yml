@@ -125,6 +125,17 @@ jobs:
       - name: Validate the in-repository profile
         run: cargo run --quiet -p estamora-cli -- validate --spec fixtures --profile conformance-token@1.0
 
+      # The cost table in `examples/testnet-contract/README.md` is rendered from
+      # `examples/testnet-contract/costs.json` rather than typed, and this is what keeps that
+      # true. A number in a document that is not the number in the capture it claims to come
+      # from is worse than no number, because a reader has no way to tell.
+      #
+      # Deliberately offline. Re-measuring here would make the fee a function of when CI ran,
+      # and a record of a measurement that changes on its own is not a record of anything.
+      # Returns a non-zero exit only when the two disagree.
+      - name: The documented contract costs match the capture they came from
+        run: python3 scripts/measure-contract-costs.py check examples/testnet-contract/costs.json examples/testnet-contract/README.md
+
       - name: Validate SEP-41 from the specification repository
         run: cargo run --quiet -p estamora-cli -- --spec ./estamora-conformance-spec validate --profile sep-41@1.0
 
