@@ -91,9 +91,9 @@ installer's `--version` flag pins a release, and this is the release to pin.
 
 ## [0.1.2] - 2026-09-15
 
-The first release whose crates are published to crates.io, and the two report defects that
-would have been permanent once they were. A version on crates.io cannot be withdrawn, so the
-choice was a release that carries the fixes or a release that does not.
+The release that prepared the crates for crates.io, and the two report defects that would
+have been permanent once a version had been published. A version on crates.io cannot be
+withdrawn, so the choice was a release that carries the fixes or a release that does not.
 
 A patch, under the qualification at the top of this file rather than in spite of it. Both
 fixes change report *content*, which the policy there calls a major change, and the
