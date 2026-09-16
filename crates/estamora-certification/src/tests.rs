@@ -69,6 +69,7 @@ pub fn a_report() -> Report {
 }
 
 /// The digest a receipt commits to is the digest of the report as JSON.
+#[test]
 fn report_digest_is_stable() -> Result<()> {
     let report = a_report();
     let first = crate::report_digest(&report)?;
@@ -151,9 +152,4 @@ fn an_unsigned_receipt_still_matches_its_report() {
     let verification = crate::verify(&signed, &report, None).unwrap();
     assert_eq!(verification.report_digest, signed.receipt.report_digest);
     assert!(!verification.is_attributed());
-}
-
-#[test]
-fn the_crate_level_digest_helper_is_reachable() {
-    report_digest_is_stable().unwrap();
 }
