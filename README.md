@@ -1,5 +1,11 @@
 # estamora-conformance-runner
 
+[![CI](https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/actions/workflows/ci.yml/badge.svg)](https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/actions/workflows/ci.yml)
+[![Integration](https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/actions/workflows/integration.yml/badge.svg)](https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/actions/workflows/integration.yml)
+[![Documentation](https://img.shields.io/badge/docs-estamora--docs.vercel.app-blue)](https://estamora-docs.vercel.app)
+[![Measured on testnet](https://img.shields.io/badge/measured%20on-testnet-steelblue)](examples/testnet-contract/README.md)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 Estamora answers one question about a Soroban contract:
 
 > Does this deployed contract actually behave according to the standard or profile it claims
@@ -13,12 +19,15 @@ in the specification repository and reports, per assertion, whether it conformed
 
 ## Where this sits
 
-Estamora is exactly two repositories.
+Estamora is four repositories. The boundary between the first two is the design: one defines
+conformance, the other measures it, and neither depends on the other's implementation.
 
 | Repository | Owns |
 | --- | --- |
 | [`estamora-conformance-spec`](https://github.com/Estamora-Soroban-Layers/estamora-conformance-spec) — [read it](https://estamora-soroban-layers.github.io/estamora-conformance-spec/) | What conformance *means*: profiles, vectors, schemas and the validation tooling |
 | `estamora-conformance-runner` (this repository) | Measuring a contract against those requirements and reporting the result |
+| [`estamora-docs`](https://github.com/Estamora-Soroban-Layers/estamora-docs) — [read it](https://estamora-docs.vercel.app) | Explaining both of the above: guides, and this repository's own `docs/` assembled at a pinned revision |
+| [`estamora-app`](https://github.com/Estamora-Soroban-Layers/estamora-app) | Presenting conformance evidence for live testnet contracts. It reads results; it cannot produce a verdict |
 
 The specification repository is normative. This repository contains no requirements of its
 own: it loads a profile, executes the vectors that belong to it, and reports what happened.
@@ -29,7 +38,7 @@ repository has a defect.
 
 | Document | Answers |
 | --- | --- |
-| [`docs/architecture.md`](docs/architecture.md) | How the two repositories divide, how the crates are layered, and where a failure is attributed. |
+| [`docs/architecture.md`](docs/architecture.md) | How the layers divide, how the crates are layered, and where a failure is attributed. |
 | [`docs/execution-engine.md`](docs/execution-engine.md) | What one vector's execution observes, how each of the seven dimensions is evaluated, and how checks become a verdict. |
 | [`docs/cli.md`](docs/cli.md) | Every command, flag, format and exit code, and why the exit codes are what they are. |
 | [`docs/profile-format.md`](docs/profile-format.md) | The shape of a profile bundle, and what the loader refuses. |
