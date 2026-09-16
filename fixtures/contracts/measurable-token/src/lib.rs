@@ -79,7 +79,10 @@ pub enum Error {
     InsufficientBalance = 1,
     /// The allowance is smaller than the amount drawn against it.
     InsufficientAllowance = 2,
-    /// An amount was not positive.
+    /// An amount was negative, so applying it would move value in the wrong direction.
+    ///
+    /// Zero is not this error. Revoking an allowance, or burning nothing, is a legitimate
+    /// thing to ask for, and SEP-0041 defines no refusal for it.
     InvalidAmount = 3,
 }
 
@@ -116,9 +119,7 @@ impl MeasurableToken {
         live_until_ledger: u32,
     ) {
         from.require_auth();
-        if amount < 0 {
-            panic_with_error!(&env, Error::InvalidAmount);
-        }
+        Self::refuse_invalid_amount(&env, amount);
         env.storage().temporary().set(
             &DataKey::Allowance(from, spender),
             &(amount, live_until_ledger),
@@ -168,9 +169,11 @@ impl MeasurableToken {
     ///
     /// # Panics
     ///
-    /// Panics with [`Error::InsufficientBalance`] when the holder does not hold `amount`.
+    /// Panics with [`Error::InvalidAmount`] for a negative amount, and with
+    /// [`Error::InsufficientBalance`] when the holder does not hold `amount`.
     pub fn burn(env: Env, from: Address, amount: i128) {
         from.require_auth();
+        Self::refuse_invalid_amount(&env, amount);
         let held = Self::balance(env.clone(), from.clone());
         if held < amount {
             panic_with_error!(&env, Error::InsufficientBalance);
@@ -184,11 +187,12 @@ impl MeasurableToken {
     ///
     /// # Panics
     ///
-    /// Panics with [`Error::InsufficientAllowance`] when the live allowance is smaller
-    /// than `amount`, and with [`Error::InsufficientBalance`] when the holder does not
-    /// have it.
+    /// Panics with [`Error::InvalidAmount`] for a negative amount, with
+    /// [`Error::InsufficientAllowance`] when the live allowance is smaller than `amount`,
+    /// and with [`Error::InsufficientBalance`] when the holder does not have it.
     pub fn burn_from(env: Env, spender: Address, from: Address, amount: i128) {
         spender.require_auth();
+        Self::refuse_invalid_amount(&env, amount);
         let (allowed, live_until) = Self::live_allowance(&env, &from, &spender);
         if allowed < amount {
             panic_with_error!(&env, Error::InsufficientAllowance);
@@ -240,6 +244,38 @@ impl MeasurableToken {
         }
     }
 
+    /// Whether `amount` is one this token will act on.
+    ///
+    /// The rule is stated **once**, here, and every entry point that takes an amount asks
+    /// this rather than repeating the comparison. It used to be written out in three
+    /// places and omitted from two of them: `approve` refused a negative amount inline,
+    /// and `move_value` refused it for `transfer` and `transfer_from`, while `burn` and
+    /// `burn_from` refused nothing at all. A negative amount does not merely travel the
+    /// other way — it *creates* value, because `held - amount` is larger than `held` when
+    /// `amount` is negative, and the same arithmetic on an allowance hands a spender a
+    /// grant out of nothing. One shared predicate is what makes that omission
+    /// unrepeatable: a method added later either asks this function or fails to compile.
+    ///
+    /// Zero is valid: revoking an allowance, or burning nothing, is a legitimate thing to
+    /// ask for, and this token has no refusal for it.
+    fn is_valid_amount(amount: i128) -> bool {
+        amount >= 0
+    }
+
+    /// Refuses an amount this token will not act on.
+    ///
+    /// An entry point whose signature is SEP-0041's returns nothing, so a refusal cannot
+    /// be reported in a return value: it has to be a trap carrying the error, which is
+    /// what the host records and what a caller observes. `move_value` reports the same
+    /// refusal through its `Result` because a private helper may; the exported functions
+    /// cannot, which is why both routes ask [`MeasurableToken::is_valid_amount`] instead of
+    /// each deciding for itself.
+    fn refuse_invalid_amount(env: &Env, amount: i128) {
+        if !Self::is_valid_amount(amount) {
+            panic_with_error!(env, Error::InvalidAmount);
+        }
+    }
+
     /// A refusal, as SEP-0041 requires one to be made.
     ///
     /// The standard declares these methods as returning nothing, so a failure cannot be
@@ -255,7 +291,7 @@ impl MeasurableToken {
 
     /// Moves value, refusing an amount the transferor does not hold.
     fn move_value(env: &Env, from: &Address, to: &Address, amount: i128) -> Result<(), Error> {
-        if amount < 0 {
+        if !Self::is_valid_amount(amount) {
             return Err(Error::InvalidAmount);
         }
         let sender = env
@@ -352,5 +388,116 @@ mod tests {
             0,
             "an allowance past its last live ledger must read as zero"
         );
+    }
+
+    /// A negative amount must be refused by every entry point that takes one, and the
+    /// refusal must leave the ledger exactly as it found it.
+    ///
+    /// This is a regression test with a measured history, not a guess about what might
+    /// break. `burn` and `burn_from` used to refuse nothing, and the arithmetic that
+    /// followed did not move value the other way — it *created* it:
+    ///
+    /// ```text
+    /// burn(holder, -1_000)                  balance 0 -> 1_000, and the call SUCCEEDED
+    /// burn_from(spender, holder, -2_000)    balance 0 -> 2_000
+    ///                                       allowance 0 -> 2_000
+    /// ```
+    ///
+    /// Two things let that survive a suite that was otherwise green. The rule was
+    /// duplicated rather than shared, so `approve` and `move_value` had it while the two
+    /// `burn` entry points did not; and this module's only negative-amount assertion was
+    /// aimed at `approve` — the one method that already had the guard — so the hole was
+    /// never asked about. `burn_from` was worse than `burn`: its allowance check is
+    /// `allowed < amount`, which a negative amount passes too, so a spender holding no
+    /// approval at all could credit any address it named *and* be granted an allowance on
+    /// it, in one call, from nothing.
+    ///
+    /// Every assertion below is made against empty state on purpose. This token has no
+    /// mint, so an empty token is the only world a vector can reach — and it is also where
+    /// the inversion was largest, zero to twenty thousand.
+    #[test]
+    fn a_negative_amount_is_refused_by_every_entry_point_and_changes_nothing() {
+        let env = Env::default();
+        env.mock_all_auths();
+        env.ledger().set_sequence_number(1_000);
+        let contract = env.register(MeasurableToken, ());
+        let client = MeasurableTokenClient::new(&env, &contract);
+        let holder = Address::generate(&env);
+        let spender = Address::generate(&env);
+        let recipient = Address::generate(&env);
+        let muxed = MuxedAddress::from(recipient.clone());
+
+        assert_eq!(
+            client.try_burn(&holder, &-1_000),
+            Err(Ok(Error::InvalidAmount.into())),
+            "burn must refuse a negative amount rather than credit the holder"
+        );
+        assert_eq!(
+            client.try_burn_from(&spender, &holder, &-2_000),
+            Err(Ok(Error::InvalidAmount.into())),
+            "burn_from must refuse a negative amount rather than credit the holder"
+        );
+        assert_eq!(
+            client.try_transfer(&holder, &muxed, &-1),
+            Err(Ok(Error::InvalidAmount.into()))
+        );
+        assert_eq!(
+            client.try_transfer_from(&spender, &holder, &recipient, &-1),
+            Err(Ok(Error::InvalidAmount.into()))
+        );
+        assert_eq!(
+            client.try_approve(&holder, &spender, &-1, &10),
+            Err(Ok(Error::InvalidAmount.into()))
+        );
+
+        // Refusing is only half the claim. A trap that had already written state would
+        // still be a way to mint, so the ledger has to be unchanged afterwards — and the
+        // allowance assertion is the one that catches `burn_from`, where a *successful*
+        // call was not even required to mint: the check that was meant to stop it passed
+        // a negative amount straight through and then widened the grant.
+        assert_eq!(
+            client.balance(&holder),
+            0,
+            "a refused burn must not create a balance"
+        );
+        assert_eq!(client.balance(&recipient), 0);
+        assert_eq!(
+            client.allowance(&holder, &spender),
+            0,
+            "a refused burn_from must not grant the spender an allowance"
+        );
+    }
+
+    /// Zero is a valid amount, and the boundary has to stay exactly where it is.
+    ///
+    /// [`MeasurableToken::is_valid_amount`] refuses a negative amount and accepts zero.
+    /// Tightening it to "positive" would read as stricter and would silently break
+    /// revocation — approving zero is how an allowance is withdrawn — while fixing nothing
+    /// about the inversion the guard exists for, because zero cannot invert anything. This
+    /// test is what makes that a decision rather than an accident.
+    #[test]
+    fn a_zero_amount_is_accepted_so_an_allowance_can_be_revoked() {
+        let env = Env::default();
+        env.mock_all_auths();
+        env.ledger().set_sequence_number(1_000);
+        let contract = env.register(MeasurableToken, ());
+        let client = MeasurableTokenClient::new(&env, &contract);
+        let holder = Address::generate(&env);
+        let spender = Address::generate(&env);
+
+        client.approve(&holder, &spender, &500, &2_000);
+        assert_eq!(client.allowance(&holder, &spender), 500);
+
+        client.approve(&holder, &spender, &0, &2_000);
+        assert_eq!(
+            client.allowance(&holder, &spender),
+            0,
+            "approving zero must revoke rather than refuse"
+        );
+
+        // Burning nothing is likewise not an error, and must not fail for a holder whose
+        // balance is already zero.
+        client.burn(&holder, &0);
+        assert_eq!(client.balance(&holder), 0);
     }
 }
