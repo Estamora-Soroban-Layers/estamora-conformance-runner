@@ -55,7 +55,7 @@ import urllib.request
 # The deployment the example documents. A measurement of a *different* deployment of the same
 # code would produce the same numbers -- the code hash is recorded for exactly that reason --
 # so this is the instance already named in the README rather than a second one to keep in step.
-CONTRACT = "CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW"
+CONTRACT = "CDMCJRW5QBTOOOGYDPCJV6N4RKLX44V6XWKNN6ZFAKN6J2F5HQPSNAOV"
 
 # A public key, used only as the transaction's source. See the module docstring: no secret is
 # needed, because nothing is signed and nothing is submitted.

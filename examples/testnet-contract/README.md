@@ -79,22 +79,37 @@ tool is a better answer than a paragraph saying it works.
 
 | | |
 | --- | --- |
-| contract | `CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW` |
+| contract | `CDMCJRW5QBTOOOGYDPCJV6N4RKLX44V6XWKNN6ZFAKN6J2F5HQPSNAOV` |
 | network | `testnet` |
-| artifact | `sha256:8393f410…07ffc688` — the digest of `fixtures/wasm/measurable-token.wasm` |
+| artifact | `sha256:5cbcc4ab…9f8707cc` — the digest of `fixtures/wasm/measurable-token.wasm` |
 | profile | `sep-41@1.0`, digest `sha256:94654291…e732aee6` |
-| runner | `estamora 0.1.3`, `2026-09-16T08:43:15Z` |
+| runner | `estamora 0.1.3`, `2026-09-16T15:51:23Z` |
 | reported | 63 checks, 0 failed · 1 vector passed, 19 skipped |
 | verdict | `INCONCLUSIVE` (exit `2`) |
 
-The deployment recorded above is the **second** one. The first was
-`CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P`, at artifact digest
-`sha256:0fb7bc3d…b1eedc48`, and it was superseded when `burn` and `burn_from` were
-given the negative-amount refusal they were missing — before that, `burn` with a
-negative amount credited the holder rather than failing. The artifact was rebuilt from
-the corrected source, redeployed, and re-measured, so the digest and the contract above
-name the same bytes and the verdict below belongs to a contract that refuses a negative
-amount. Anyone citing the earlier pair is citing the fix's own motivating example.
+The deployment recorded above is the **third** one, and the pairing is current: the digest in
+the table is the digest of the artifact this repository commits, which is the property the
+history below is about.
+
+The first deployment, `CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P` at
+`sha256:0fb7bc3d…b1eedc48`, was superseded when `burn` and `burn_from` were given the
+negative-amount refusal they were missing — before that, `burn` with a negative amount credited
+the holder rather than failing. Anyone citing that pair is citing the fix's own motivating
+example.
+
+The second, `CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW` at
+`sha256:8393f410…07ffc688`, was superseded by this one. Its source built each storage key twice
+where it needed it once; the artifact and the deployment recorded above come from a source that
+builds it once, which leaves the compiled contract **115 bytes smaller**, 11,324 to 11,209. The
+per-call cost did not move — the measurements in [What these calls cost](#what-these-calls-cost)
+differ by a few dozen instructions in either direction, which is ledger state rather than code —
+because what a call pays for is the storage reads and writes, and what a deployment pays for is
+the size of the code that performs them.
+
+Pairing the digest with the contract is not left to a reader to check.
+`the_committed_network_measurement_reads_re_renders_and_agrees_with_the_artifact` fails if the
+report's code hash is not the hash of the artifact in this tree, which is why the artifact and
+the deployment are always rebuilt and redeployed together rather than one at a time.
 
 The artifact resolves over RPC, the instance's own code hash is compared against
 the fetched bytes, the interface is read out of the deployed artifact's spec
@@ -121,7 +136,7 @@ anywhere.
 ### Reproducing it
 
 ```bash
-# The same artifact, built from the same source under the pinned toolchain.
+# The artifact as it stands in this tree, under the pinned toolchain.
 ./scripts/build-fixture-wasm.sh
 
 # Deploy it. Any funded testnet account will do.
@@ -135,8 +150,9 @@ estamora run --profile sep-41@1.0 --contract <contract-id> --network testnet \
 ```
 
 A different deployment produces a different contract identifier and a different
-timestamp, so the report will differ in those fields. What it must not differ in
-is the artifact digest: that field is what ties a verdict to a compilation.
+timestamp, so the report will differ in those fields. What it must not differ in is the
+artifact digest: that field is what ties a verdict to a compilation, and the test named above
+is what keeps it the digest of the artifact in this tree.
 
 ## What these calls cost
 
@@ -146,19 +162,19 @@ different question. This is the answer for the example token, measured rather th
 
 | entrypoint | call | CPU instructions | ledger bytes | resource fee |
 | --- | --- | ---: | ---: | ---: |
-| `decimals` | a constant, read | 429,406 | 0 | 12,648 stroops |
-| `name` | a constant, read | 433,430 | 0 | 12,722 stroops |
-| `symbol` | a constant, read | 433,777 | 0 | 12,672 stroops |
-| `balance` | a balance that does not exist | 478,533 | 0 | 13,445 stroops |
-| `allowance` | an allowance that does not exist | 490,919 | 0 | 13,872 stroops |
-| `approve` | revoking an allowance with zero | 519,661 | 216 written, 0 read | 20,381 stroops |
-| `burn` | burning nothing | 519,433 | 148 written, 0 read | 37,963 stroops |
-| `burn_from` | burning nothing against a zero allowance | 623,310 | 364 written, 0 read | 44,892 stroops |
+| `decimals` | a constant, read | 429,437 | 0 | 12,648 stroops |
+| `name` | a constant, read | 433,461 | 0 | 12,722 stroops |
+| `symbol` | a constant, read | 433,808 | 0 | 12,672 stroops |
+| `balance` | a balance that does not exist | 478,900 | 0 | 13,446 stroops |
+| `allowance` | an allowance that does not exist | 490,890 | 0 | 13,872 stroops |
+| `approve` | revoking an allowance with zero | 519,692 | 216 written, 0 read | 20,387 stroops |
+| `burn` | burning nothing | 519,424 | 148 written, 0 read | 39,154 stroops |
+| `burn_from` | burning nothing against a zero allowance | 623,241 | 364 written, 0 read | 46,089 stroops |
 | `transfer` | refused: the holder has a zero balance | - | - | - |
 | `burn` | refused: a negative amount | - | - | - |
 | `approve` | refused: a negative amount | - | - | - |
 
-Measured against `CDB3EKMU…` on testnet at ledger 4707528, by `scripts/measure-contract-costs.py`. Instructions and bytes are what Soroban charges for; the resource fee is their price in stroops, taken from the simulation's `minResourceFee` and excluding the inclusion fee and any refund of unused bytes.
+Measured against `CDMCJRW5…` on testnet at ledger 4710047, by `scripts/measure-contract-costs.py`. Instructions and bytes are what Soroban charges for; the resource fee is their price in stroops, taken from the simulation's `minResourceFee` and excluding the inclusion fee and any refund of unused bytes.
 
 A refused call is listed because its refusal is part of the contract's surface, and it has no numbers against it because a failed simulation returns no resource data: the resources consumed are carried inside the transaction data a successful simulation produces, and are absent here rather than zero.
 

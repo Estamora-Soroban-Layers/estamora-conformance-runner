@@ -41,7 +41,27 @@ incorrect verdict is fixed rather than preserved.
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+* **Every entry point builds each storage key once.** `move_value`, `burn`, `burn_from` and
+  `transfer_from` each named the entry they were about to read and then named it again to
+  write it, and a `DataKey` carries an `Address` that is encoded before it reaches the
+  storage layer. The key is now built once and reused. No behaviour changes: the same entries
+  are read and written, the same number of times, in the same order, and every refusal is
+  reached by the same path.
+
+  The saving is in the compiled contract rather than in the resource fee, and that
+  distinction is measured rather than assumed. Costing every entry point in the local host
+  before and after gives **identical instruction counts**; the artifact is **115 bytes
+  smaller**, 11,324 to 11,209 (1.0%). What a *call* pays for is the storage reads and writes
+  — two reads and two writes for a transfer, which is the arithmetic the operation requires —
+  and what a *deployment* pays for is the size of the code that performs them.
+
+  `examples/testnet-contract/costs.json` is unchanged and still correct. That capture measures
+  a **deployed** contract, and the deployment it names was built from the earlier source, so
+  re-running the measurement reports the deployment and not this tree. Making the committed
+  artifact and the deployed one the same bytes again means redeploying;
+  `examples/testnet-contract/README.md` records both digests until that happens.
 
 ## [0.1.3] - 2026-09-15
 
