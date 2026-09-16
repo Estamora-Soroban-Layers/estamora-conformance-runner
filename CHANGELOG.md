@@ -39,6 +39,36 @@ Pre-`1.0`, a patch release may carry a fix that changes behaviour, and it will s
 here. That is the one place the rule above is relaxed, and it is relaxed because an
 incorrect verdict is fixed rather than preserved.
 
+## What a release is verified against
+
+The section above says a verdict is identified by the profile it was measured
+against, and that the runner version is independent of it. Independent is not
+unstated, so this section records the pairing: which revision of which
+specification this tree's CI was verified against.
+
+The pairing has exactly one source of truth, and it is not this table: the `ref` in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) and
+[`.github/workflows/integration.yml`](.github/workflows/integration.yml). Those jobs
+check `estamora-conformance-spec` out at a release tag and then run the
+cross-repository tests against it, so the tag they pin is the specification revision
+every claim in a release's own CI was made against. This table is written by hand and
+is checked against them rather than trusted: a row naming a tag the workflows do not
+pin is a defect, and the fix is to move the pin and the row together.
+
+| Runner version | Specification revision | Profile identities executed |
+| --- | --- | --- |
+| Unreleased (this tree) | `v0.1.1` | `sep-41@1.0`, normative, read from the specification checkout; `conformance-token@1.0`, the in-repository fixture bundle, which is not normative |
+
+**Releases before this table.** `0.1.0` through `0.1.3` predate the pin: those runs
+checked the specification out at its default branch, which names no revision, so no
+specification revision can be recorded for them after the fact and none is invented
+here. The pin landed afterwards, with
+[`.github/workflows/spec-canary.yml`](.github/workflows/spec-canary.yml) beside it —
+the canary is what reports a pinned revision going stale, and it reports it against a
+named document rather than as an unrelated failure in whatever else was pushed that
+day. The next release is the first whose row is a pair of revisions rather than a
+version number.
+
 ## [Unreleased]
 
 ### Changed

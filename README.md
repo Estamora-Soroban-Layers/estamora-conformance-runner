@@ -62,7 +62,8 @@ repository has a defect.
 
 `CONTRIBUTING.md` describes the workspace, the code standards and how to add an
 assertion dimension. `CHANGELOG.md` carries the versioning policy, including what
-counts as a breaking change for a tool whose output is a verdict.
+counts as a breaking change for a tool whose output is a verdict, and the table of
+which specification revision each release was verified against.
 
 ## Current status
 

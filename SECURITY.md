@@ -61,9 +61,11 @@ what it says and not for more.
   run it. A receipt names the profile and its digest precisely so that a reader can
   judge the claim; a `CONFORMANT` verdict under a permissive profile is an accurate
   verdict under a permissive profile.
-* **The absence of a network transport in this build.** It is documented, it is
-  refused with a named reason, and it exits as an environment failure rather than as
-  anything about a contract. See `docs/testnet-testing.md`.
+* **The read-only network access `--network` performs.** It reads two ledger entries —
+  the contract instance and the code it names — and nothing else: no transaction is
+  submitted, no account is funded, and no key is read. It is documented in
+  `docs/testnet-testing.md`, and every way it fails is reported as an environment
+  failure that exits `4` rather than as anything about a contract.
 * **A refusal to execute a profile this runner does not understand.** Refusing by
   name is the designed behaviour.
 
