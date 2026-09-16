@@ -102,6 +102,35 @@ jobs:
       - name: Cross-repository conformance
         run: cargo test --workspace --locked -- --ignored
 
+  # Coverage is measured on one platform rather than in the OS matrix: the figure is a
+  # property of the code, and running `cargo llvm-cov` on three runners would triple the
+  # job's cost to report the same number. The floor lives in `scripts/coverage.sh` so that
+  # the number a contributor gets locally is produced by the same command CI runs.
+  coverage:
+    name: test coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install the pinned toolchain
+        run: rustup show active-toolchain
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      # `llvm-tools-preview` provides the `llvm-profdata` and `llvm-cov` binaries the
+      # report is built from; without the component `cargo llvm-cov` has nothing to
+      # invoke. `cargo install` rather than a prebuilt-binary action keeps the workflow's
+      # dependency surface to actions this repository already trusts.
+      - name: Install the coverage tooling
+        run: |
+          rustup component add llvm-tools-preview
+          cargo install cargo-llvm-cov --locked
+
+      - name: Measure coverage and enforce the floor
+        run: ./scripts/coverage.sh
+
   profile:
     name: profile and corpus
     runs-on: ubuntu-latest

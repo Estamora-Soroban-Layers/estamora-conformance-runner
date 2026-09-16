@@ -2,13 +2,17 @@
 
 [![CI](https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/actions/workflows/ci.yml/badge.svg)](https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/actions/workflows/ci.yml)
 [![Integration](https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/actions/workflows/integration.yml/badge.svg)](https://github.com/Estamora-Soroban-Layers/estamora-conformance-runner/actions/workflows/integration.yml)
+[![Coverage](https://img.shields.io/badge/line%20coverage-%E2%89%A5%2070%25%20enforced-brightgreen)](#test-coverage)
 [![Documentation](https://img.shields.io/badge/docs-estamora--docs.vercel.app-blue)](https://estamora-docs.vercel.app)
-[![Product pitch](https://img.shields.io/badge/watch-5--minute%20pitch-blueviolet)](https://github.com/Estamora-Soroban-Layers/estamora-docs/releases/download/pitch-v1/estamora-pitch.mp4)
+[![Product pitch](https://img.shields.io/badge/watch-5--minute%20pitch-blueviolet)](https://estamora-docs.vercel.app/assets/estamora-pitch.mp4)
 [![Measured on testnet](https://img.shields.io/badge/measured%20on-testnet-steelblue)](examples/testnet-contract/README.md)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**[Watch the five-minute product pitch](https://github.com/Estamora-Soroban-Layers/estamora-docs/releases/download/pitch-v1/estamora-pitch.mp4)**
-— it includes a real run of this binary, captured from the release build rather than staged.
+**[Watch the five-minute product pitch](https://estamora-docs.vercel.app/assets/estamora-pitch.mp4)**
+— it includes a real run of this binary, captured from the release build rather than staged. It is
+served by the documentation site so the browser plays it rather than downloading it; the
+[release copy](https://github.com/Estamora-Soroban-Layers/estamora-docs/releases/download/pitch-v1/estamora-pitch.mp4)
+is the archived download.
 
 Estamora answers one question about a Soroban contract:
 
@@ -343,6 +347,47 @@ cargo test --workspace
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 ```
+
+## Test coverage
+
+Measured with `./scripts/coverage.sh`, which runs `cargo llvm-cov` over the workspace and fails
+below the floor. The scope is the crates this project ships:
+
+```
+TOTAL   13963 regions   73.52%   |   9790 lines   73.32%   |   963 functions   79.34%
+```
+
+**73.3% of the runner's own lines**, over 9,790 lines of Rust, measured with `cargo llvm-cov`.
+The floor is 70%, enforced by the script and by the `test coverage` job in CI.
+
+What is measured, and what is not, because the denominator is what makes the figure mean
+something:
+
+| Path                  | In the figure | Why                                                                                    |
+| --------------------- | ------------- | -------------------------------------------------------------------------------------- |
+| `crates/`             | **yes**       | The runner: the measurement engine, the assertion engine, the report, the CLI.        |
+| `fixtures/contracts/` | no            | Deliberately-defective Soroban contracts used as *inputs*. One of them is the free-mint bug the worked example is built around. They are subject matter, not tooling. |
+| `integration-tests/`  | no            | Test code.                                                                             |
+| `benches/`            | no            | Benchmark harnesses.                                                                    |
+
+Excluding them is not a way of raising the number: including every path, the workspace reports
+74.2%, which is *higher* than the product figure because the integration tests are well covered.
+The product number is the honest one to quote, and it is the lower of the two.
+
+### Where the gap is
+
+One finding is worth publishing rather than leaving in a report. **`crates/estamora-cli/src/commands/`
+is at 0.00%** — 758 lines across `run.rs`, `certify.rs`, `inspect.rs`, `profile.rs`, `report.rs`,
+`validate.rs` and `mod.rs`. Those handlers are thin and they are exercised end to end by the
+exit-code contract tests that build the binary and run it, but no test drives them in-process, so
+`cargo llvm-cov` cannot see them. The same shape of gap as a spawned subprocess in any language,
+and it is the most valuable next thing to close: moving the argument handling and the diagnostic
+translation of those handlers behind callable functions would put roughly 750 lines inside the
+measured surface.
+
+The lowest-covered modules that *are* measured are `estamora-cli/src/engine/values.rs` (56.1% line)
+and `estamora-assertions/src/dimensions/invariants.rs` (61.9% line) — both reachable in-process, both worth
+a focused test module, and both named in the open issues rather than left as a surprise.
 
 ## The exit-code contract
 
