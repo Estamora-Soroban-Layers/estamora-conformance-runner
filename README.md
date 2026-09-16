@@ -339,6 +339,59 @@ which is why that run is `INCONCLUSIVE` and not conformant. The example's README
 the identifiers, the digests and the command, and says what the verdict does and does not
 mean.
 
+## What a call costs, measured
+
+A conformance verdict says whether a contract behaves as a profile requires. It says nothing about
+what calling it costs, and a token author asking "what does my token cost?" is asking a different
+question. This is the answer for the example token, measured rather than estimated:
+
+| entrypoint | call | CPU instructions | ledger bytes | resource fee |
+| --- | --- | ---: | ---: | ---: |
+| `decimals` | a constant, read | 429,437 | 0 | 12,648 stroops |
+| `name` | a constant, read | 433,461 | 0 | 12,722 stroops |
+| `symbol` | a constant, read | 433,808 | 0 | 12,672 stroops |
+| `balance` | a balance that does not exist | 478,900 | 0 | 13,446 stroops |
+| `allowance` | an allowance that does not exist | 490,890 | 0 | 13,872 stroops |
+| `approve` | revoking an allowance with zero | 519,692 | 216 written, 0 read | 20,387 stroops |
+| `burn` | burning nothing | 519,424 | 148 written, 0 read | 39,154 stroops |
+| `burn_from` | burning nothing against a zero allowance | 623,241 | 364 written, 0 read | 46,089 stroops |
+| `transfer` | refused: the holder has a zero balance | - | - | - |
+| `burn` | refused: a negative amount | - | - | - |
+| `approve` | refused: a negative amount | - | - | - |
+
+Measured against `CDMCJRW5…` on testnet at ledger 4710047, by
+[`scripts/measure-contract-costs.py`](scripts/measure-contract-costs.py), which simulates each call
+and reads the resources out of the simulation. Instructions and bytes are what Soroban charges for;
+the resource fee is their price in stroops, taken from the simulation's `minResourceFee` and
+excluding the inclusion fee and any refund of unused bytes. A refused call is listed because its
+refusal is part of the contract's surface, and it has no numbers against it because a failed
+simulation returns no resource data — absent rather than zero.
+
+The table is **rendered** from [`examples/testnet-contract/costs.json`](examples/testnet-contract/costs.json),
+not typed, and CI fails if the two disagree. A number in a document that is not the number in the
+capture it claims to come from is worse than no number, because a reader has no way to tell.
+
+### What optimising this contract actually bought
+
+Every entry point in the example token now builds each storage key once, instead of naming the
+target of a call twice — once to read it and once to write it. That is worth stating as a
+measurement, because the intuition is wrong about where the saving lands:
+
+| | before | after |
+| --- | ---: | ---: |
+| Compiled artifact | 11,324 bytes | **11,209 bytes** (−115, 1.0%) |
+| Artifact digest | `8393f410…07ffc688` | `5cbcc4ab…9f8707cc` |
+| CPU instructions per call | measured | **unchanged**, to within ledger noise |
+
+What a *call* pays for is the storage reads and writes, and a transfer needs two reads and two
+writes whichever way the key is spelled. What a *deployment* pays for is the size of the code that
+performs them. So the saving is real, and it is in the deployment rather than in the fee.
+
+The per-call figures above are the second reading of that claim rather than the first: they were
+taken in the local host before and after the change, and again over RPC after redeploying the
+token. Both readings agree that the fee did not move, and the small differences between them — a
+few dozen instructions, a handful of stroops — are ledger state rather than code.
+
 ## Building
 
 The toolchain is pinned in `rust-toolchain.toml` and is part of the runner's identity: a

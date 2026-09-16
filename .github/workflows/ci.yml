@@ -165,6 +165,12 @@ jobs:
       - name: The documented contract costs match the capture they came from
         run: python3 scripts/measure-contract-costs.py check examples/testnet-contract/costs.json examples/testnet-contract/README.md
 
+      # And the same table, in the top-level README. Two documents render one capture, so there
+      # are two ways for a reader to be told the wrong number, and one check each is cheaper
+      # than reasoning about which of them a contributor is likely to edit.
+      - name: The README's cost table is the same capture's
+        run: python3 scripts/measure-contract-costs.py check examples/testnet-contract/costs.json README.md
+
       - name: Validate SEP-41 from the specification repository
         run: cargo run --quiet -p estamora-cli -- --spec ./estamora-conformance-spec validate --profile sep-41@1.0
 
