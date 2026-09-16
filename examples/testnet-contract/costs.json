@@ -1,0 +1,99 @@
+{
+  "contract": "CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW",
+  "source_account": "GBITS7JPWINS2T22IWQ5BZK42GZXWOFS4CTFNXML33IX75TOLCDXDA5G",
+  "rpc": "https://soroban-testnet.stellar.org",
+  "network": "testnet",
+  "latest_ledger": 4707528,
+  "rows": [
+    {
+      "entrypoint": "decimals",
+      "call": "a constant, read",
+      "refused": false,
+      "instructions": 429406,
+      "disk_read_bytes": 0,
+      "write_bytes": 0,
+      "resource_fee": 12648
+    },
+    {
+      "entrypoint": "name",
+      "call": "a constant, read",
+      "refused": false,
+      "instructions": 433430,
+      "disk_read_bytes": 0,
+      "write_bytes": 0,
+      "resource_fee": 12722
+    },
+    {
+      "entrypoint": "symbol",
+      "call": "a constant, read",
+      "refused": false,
+      "instructions": 433777,
+      "disk_read_bytes": 0,
+      "write_bytes": 0,
+      "resource_fee": 12672
+    },
+    {
+      "entrypoint": "balance",
+      "call": "a balance that does not exist",
+      "refused": false,
+      "instructions": 478533,
+      "disk_read_bytes": 0,
+      "write_bytes": 0,
+      "resource_fee": 13445
+    },
+    {
+      "entrypoint": "allowance",
+      "call": "an allowance that does not exist",
+      "refused": false,
+      "instructions": 490919,
+      "disk_read_bytes": 0,
+      "write_bytes": 0,
+      "resource_fee": 13872
+    },
+    {
+      "entrypoint": "approve",
+      "call": "revoking an allowance with zero",
+      "refused": false,
+      "instructions": 519661,
+      "disk_read_bytes": 0,
+      "write_bytes": 216,
+      "resource_fee": 20381
+    },
+    {
+      "entrypoint": "burn",
+      "call": "burning nothing",
+      "refused": false,
+      "instructions": 519433,
+      "disk_read_bytes": 0,
+      "write_bytes": 148,
+      "resource_fee": 37963
+    },
+    {
+      "entrypoint": "burn_from",
+      "call": "burning nothing against a zero allowance",
+      "refused": false,
+      "instructions": 623310,
+      "disk_read_bytes": 0,
+      "write_bytes": 364,
+      "resource_fee": 44892
+    },
+    {
+      "entrypoint": "transfer",
+      "call": "refused: the holder has a zero balance",
+      "refused": true,
+      "error": "HostError: Error(Contract, #1)\n\nEvent log (newest first):\n   0: [Diagnostic Event] contract:CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW, topics:[error, Error(Contract, #1)], data:\"escalating error to VM trap from failed host function call: fail_with_error\"\n   1: [Diagnostic Event] contract:CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW, topics:[error, Error(Contract, #1)], data:[\"failing with contract error\", 1]\n   2: [Diagnostic Event] topics:[fn_call, CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW, transfer], data:[GBITS7JPWINS2T22IWQ5BZK42GZXWOFS4CTFNXML33IX75TOLCDXDA5G, GBITS7JPWINS2T22IWQ5BZK42GZXWOFS4CTFNXML33IX75TOLCDXDA5G, 1]\n"
+    },
+    {
+      "entrypoint": "burn",
+      "call": "refused: a negative amount",
+      "refused": true,
+      "error": "HostError: Error(Contract, #3)\n\nEvent log (newest first):\n   0: [Diagnostic Event] contract:CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW, topics:[error, Error(Contract, #3)], data:\"escalating error to VM trap from failed host function call: fail_with_error\"\n   1: [Diagnostic Event] contract:CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW, topics:[error, Error(Contract, #3)], data:[\"failing with contract error\", 3]\n   2: [Diagnostic Event] topics:[fn_call, CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW, burn], data:[GBITS7JPWINS2T22IWQ5BZK42GZXWOFS4CTFNXML33IX75TOLCDXDA5G, -1]\n"
+    },
+    {
+      "entrypoint": "approve",
+      "call": "refused: a negative amount",
+      "refused": true,
+      "error": "HostError: Error(Contract, #3)\n\nEvent log (newest first):\n   0: [Diagnostic Event] contract:CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW, topics:[error, Error(Contract, #3)], data:\"escalating error to VM trap from failed host function call: fail_with_error\"\n   1: [Diagnostic Event] contract:CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW, topics:[error, Error(Contract, #3)], data:[\"failing with contract error\", 3]\n   2: [Diagnostic Event] topics:[fn_call, CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW, approve], data:[GBITS7JPWINS2T22IWQ5BZK42GZXWOFS4CTFNXML33IX75TOLCDXDA5G, GBITS7JPWINS2T22IWQ5BZK42GZXWOFS4CTFNXML33IX75TOLCDXDA5G, -1, 4708528]\n"
+    }
+  ]
+}

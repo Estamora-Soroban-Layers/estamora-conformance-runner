@@ -138,6 +138,77 @@ A different deployment produces a different contract identifier and a different
 timestamp, so the report will differ in those fields. What it must not differ in
 is the artifact digest: that field is what ties a verdict to a compilation.
 
+## What these calls cost
+
+A conformance verdict says whether a contract behaves as a profile requires. It says nothing
+about what calling it costs, and a token author asking "what does my token cost?" is asking a
+different question. This is the answer for the example token, measured rather than estimated.
+
+| entrypoint | call | CPU instructions | ledger bytes | resource fee |
+| --- | --- | ---: | ---: | ---: |
+| `decimals` | a constant, read | 429,406 | 0 | 12,648 stroops |
+| `name` | a constant, read | 433,430 | 0 | 12,722 stroops |
+| `symbol` | a constant, read | 433,777 | 0 | 12,672 stroops |
+| `balance` | a balance that does not exist | 478,533 | 0 | 13,445 stroops |
+| `allowance` | an allowance that does not exist | 490,919 | 0 | 13,872 stroops |
+| `approve` | revoking an allowance with zero | 519,661 | 216 written, 0 read | 20,381 stroops |
+| `burn` | burning nothing | 519,433 | 148 written, 0 read | 37,963 stroops |
+| `burn_from` | burning nothing against a zero allowance | 623,310 | 364 written, 0 read | 44,892 stroops |
+| `transfer` | refused: the holder has a zero balance | - | - | - |
+| `burn` | refused: a negative amount | - | - | - |
+| `approve` | refused: a negative amount | - | - | - |
+
+Measured against `CDB3EKMU…` on testnet at ledger 4707528, by `scripts/measure-contract-costs.py`. Instructions and bytes are what Soroban charges for; the resource fee is their price in stroops, taken from the simulation's `minResourceFee` and excluding the inclusion fee and any refund of unused bytes.
+
+A refused call is listed because its refusal is part of the contract's surface, and it has no numbers against it because a failed simulation returns no resource data: the resources consumed are carried inside the transaction data a successful simulation produces, and are absent here rather than zero.
+
+### How it was measured
+
+`simulateTransaction` against testnet, for the deployment named above. The transaction for each call is
+built with `stellar contract invoke --build-only`, which needs a source account and no signature, and
+the simulation is what reports the resources: the instructions the host charged, the ledger bytes the
+call would write and read, and `minResourceFee`, the stroop price of those resources.
+
+Nothing is signed and nothing is submitted, which is why a public key is enough. Simulation records
+the authorization a call requires rather than verifying a signature, so the calls below are the ones a
+caller with no balance and no allowance can legitimately make: the read paths, revoking an allowance
+with zero, and burning nothing. The rows with no numbers are calls the contract **refuses**, and they
+carry no figures because a failed simulation returns no resource data at all. They are listed rather
+than omitted so that the table shows the contract's refusals instead of measuring around them.
+
+Regenerate it with:
+
+```bash
+./scripts/measure-contract-costs.py measure > examples/testnet-contract/costs.json
+./scripts/measure-contract-costs.py render examples/testnet-contract/costs.json
+```
+
+`ci.yml` runs `measure-contract-costs.py check`, so this table and the capture it came from cannot
+drift apart. The check is offline and does not re-measure: a fee that is re-measured is a fee that
+changes between runs, and a document that changes between runs is not a record of anything.
+
+### What the numbers say
+
+Read the table for its shape rather than its last digit. **Every call costs between roughly 430,000
+and 625,000 instructions, and the cheapest call is the one that does least: `decimals` returns a
+compiled constant.** A contract invocation has a fixed cost before any of a contract's own code runs
+— host setup, the footprint, decoding the arguments — and that floor is most of every figure here.
+The token's own logic sits on top of it: a storage read that misses, a temporary allowance written,
+a persistent balance written.
+
+That has a consequence worth stating plainly for anyone optimising a token for fees: **arithmetic
+inside a token method is not where the fee is.** The spread across this table comes almost entirely
+from how many ledger entries a call touches — `burn_from`, which reads and writes both an allowance
+and a balance, is the most expensive call measured, at 364 bytes written against 216 for a bare
+`approve`. Reducing the number of ledger entries a call touches is the only lever here that moves
+the fee by more than a rounding error, and no call path in this contract touches an entry it does
+not need.
+
+Two qualifications on the fees, because they are the numbers most likely to be quoted. They are
+`minResourceFee` in stroops, so a read is about 0.0013 XLM and `burn_from` about 0.0045 XLM. They
+**exclude** the inclusion fee and exclude the refund of unused bytes the network returns when a
+transaction is submitted, so a simulated fee is an upper bound on the resource cost rather than the
+amount finally charged.
 ## Networks without a live node
 
 For the parts of the pipeline that must be exercised deterministically, the local
