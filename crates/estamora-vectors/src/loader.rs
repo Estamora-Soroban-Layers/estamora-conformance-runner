@@ -42,10 +42,90 @@ pub const MAX_VECTORS: usize = 10_000;
 /// without end.
 pub const MAX_WALK_DEPTH: usize = 8;
 
-/// One vector, with the path it was read from.
+/// Which library a vector was loaded from.
+///
+/// A corpus is assembled from more than one tree, so "where inside the corpus" is not a
+/// question a path alone can answer: `balance/funded.yaml` in the bundle and
+/// `balance/funded.yaml` in the shared library are different contributions, and a digest
+/// that could not tell them apart would call a corpus unchanged when a vector had moved
+/// between libraries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Library {
+    /// The profile bundle's own `vectors/` tree.
+    Bundle,
+    /// The specification repository's shared `vectors/` tree.
+    Shared,
+}
+
+impl Library {
+    /// The name this library carries in a corpus digest.
+    ///
+    /// This is a **wire format**, not a description. Changing it changes the corpus digest
+    /// of every corpus that draws from this library, and a report produced before the
+    /// change could no longer be reproduced after it — which is the one property the
+    /// digest exists to have. It is kept short and separate from the longer labels the
+    /// loader uses in diagnostics, exactly so that reworded prose cannot move a published
+    /// digest.
+    const fn as_digest_name(self) -> &'static str {
+        match self {
+            Self::Bundle => "bundle",
+            Self::Shared => "shared",
+        }
+    }
+}
+
+/// Where a vector sits in the corpus it was loaded from.
+///
+/// The library it came from and its place inside that library, and nothing else. In
+/// particular not the file's path: an absolute path is a function of where the operator
+/// checked the specification out, so folding one into a corpus digest makes two identical
+/// corpora hash differently on two machines, and a report's `vectors.digest` becomes
+/// unreproducible by the only reader who matters — one who is trying to confirm it.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Origin {
+    library: Library,
+    relative: String,
+}
+
+impl Origin {
+    /// The identity of the file `path` at `relative` within `library`.
+    ///
+    /// `relative` is rendered with `/` separators on every platform:
+    /// [`std::path::Path::display`] would put a backslash in it on Windows, and a digest
+    /// that varied by operating system would be a digest that could not be compared across
+    /// the machines a build is reproduced on.
+    fn new(library: Library, relative: &Path) -> Self {
+        let mut rendered = String::new();
+        for component in relative.components() {
+            if !rendered.is_empty() {
+                rendered.push('/');
+            }
+            rendered.push_str(&component.as_os_str().to_string_lossy());
+        }
+        Self {
+            library,
+            relative: rendered,
+        }
+    }
+}
+
+impl std::fmt::Display for Origin {
+    /// `<library>:<relative path>`, the form a corpus digest folds in.
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "{}:{}",
+            self.library.as_digest_name(),
+            self.relative
+        )
+    }
+}
+
+/// One vector, with the path it was read from and where it sits in the corpus.
 #[derive(Debug, Clone)]
 pub struct Vector {
     path: PathBuf,
+    origin: Origin,
     document: VectorDocument,
 }
 
@@ -54,6 +134,12 @@ impl Vector {
     #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    /// Where it sits in the corpus, independent of where the corpus was checked out.
+    #[must_use]
+    pub const fn origin(&self) -> &Origin {
+        &self.origin
     }
 
     /// The parsed document.
@@ -101,36 +187,38 @@ impl VectorCorpus {
         let shared_root = shared_root.as_ref();
         let root = bundle.root();
 
-        let mut paths = Vec::new();
+        let mut sources = Vec::new();
         for directory in bundle.vector_directories() {
             let declared = root.join("vectors").join(directory);
-            paths.append(&mut declared_tree(
-                &declared,
-                "the bundle's own vectors",
-                directory,
-            )?);
+            for path in declared_tree(&declared, "the bundle's own vectors", directory)? {
+                let relative = relative_to(&path, root)?;
+                sources.push((Origin::new(Library::Bundle, &relative), path));
+            }
         }
         for family in bundle.shared_vector_families() {
             let declared = shared_root.join(family);
-            paths.append(&mut declared_tree(
-                &declared,
-                "the shared vector library",
-                family,
-            )?);
+            for path in declared_tree(&declared, "the shared vector library", family)? {
+                let relative = relative_to(&path, shared_root)?;
+                sources.push((Origin::new(Library::Shared, &relative), path));
+            }
         }
 
         // A file declared twice — which a profile could arrange by naming one
         // directory under both `vectors` and `shared_vectors` — is read once, so
-        // that its id is not reported as a duplicate it is not.
-        paths.sort();
-        paths.dedup();
+        // that its id is not reported as a duplicate it is not. The bundle is
+        // collected before the shared library, and the first of two equal paths is
+        // the one kept, so a bundle wins over the shared library; which of the two is
+        // credited does not matter, but that the answer is fixed does, because it is
+        // folded into the corpus digest.
+        sources.sort_by(|left, right| left.1.cmp(&right.1));
+        sources.dedup_by(|left, right| left.1 == right.1);
 
         let mut diagnostics = Diagnostics::new();
         let mut vectors = Vec::new();
         let mut skipped = Vec::new();
         let mut seen_ids = BTreeSet::new();
 
-        for path in paths {
+        for (origin, path) in sources {
             let document: VectorDocument = read_yaml(&path)?;
 
             // A profile-independent vector describes a scenario every profile of a
@@ -167,7 +255,11 @@ impl VectorCorpus {
                 diagnostics.push(finding.clone());
             }
 
-            vectors.push(Vector { path, document });
+            vectors.push(Vector {
+                path,
+                origin,
+                document,
+            });
         }
 
         into_result(&diagnostics)?;
@@ -243,6 +335,31 @@ impl VectorCorpus {
     pub fn diagnostics(&self) -> &[Diagnostic] {
         self.diagnostics.findings()
     }
+}
+
+/// The place `path` occupies below `root`.
+///
+/// A refusal rather than a fallback. The alternative — keeping the path whole when it is
+/// not below the root — would put an absolute path back into a corpus digest through a
+/// branch nobody would think to look at, which is the defect this identity was introduced
+/// to remove.
+///
+/// # Errors
+///
+/// Returns a vector error when `path` is not below `root`.
+fn relative_to(path: &Path, root: &Path) -> Result<PathBuf> {
+    path.strip_prefix(root).map(Path::to_path_buf).map_err(|_| {
+        Error::new(
+            ErrorClass::VectorError,
+            format!(
+                "the vector at {} is not below the library root {}, so its place in the \
+                 corpus cannot be named",
+                path.display(),
+                root.display()
+            ),
+        )
+        .with_context("vector", path.display().to_string())
+    })
 }
 
 /// Resolves a declared directory into the vector files it holds.

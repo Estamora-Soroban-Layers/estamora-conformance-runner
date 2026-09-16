@@ -83,7 +83,7 @@ tool is a better answer than a paragraph saying it works.
 | network | `testnet` |
 | artifact | `sha256:8393f410…07ffc688` — the digest of `fixtures/wasm/measurable-token.wasm` |
 | profile | `sep-41@1.0`, digest `sha256:94654291…e732aee6` |
-| runner | `estamora 0.1.3`, `2026-09-16T08:21:58Z` |
+| runner | `estamora 0.1.3`, `2026-09-16T08:43:15Z` |
 | reported | 63 checks, 0 failed · 1 vector passed, 19 skipped |
 | verdict | `INCONCLUSIVE` (exit `2`) |
 

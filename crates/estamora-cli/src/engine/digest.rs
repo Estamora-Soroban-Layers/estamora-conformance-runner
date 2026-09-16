@@ -14,12 +14,35 @@
 //! untrusted input must not be able to cause. Each document is hashed on its own and
 //! only the hashes are accumulated, so the peak allocation is one document.
 //!
-//! # Why the path is hashed too
+//! # Why a place in the corpus is hashed, and why it is not a path
 //!
 //! Two files with the same contents in different places are different contributions to
 //! a corpus: a vector moved from `transfer/` to `transfer-from/` changes which
-//! requirement set it belongs to. Folding the path in makes a reorganisation visible,
-//! which is what a digest of a *corpus* rather than of a bag of bytes has to do.
+//! requirement set it belongs to. Folding where a file sits into the digest is what makes
+//! a reorganisation visible, which is what a digest of a *corpus* rather than of a bag of
+//! bytes has to do.
+//!
+//! It has to be where the file sits *in the corpus*, though, and this used to be the
+//! file's path instead. A path is not that: it is where the operator checked the
+//! specification out. The consequence was measured rather than reasoned about — the same
+//! corpus, at the same revision, produced `sha256:4d1b12df…` from one checkout directory
+//! and `sha256:bf050d7c…` from another:
+//!
+//! ```text
+//! spec at /tmp/spec-v0.1.1                    vectors=sha256:4d1b12dfa9a50…
+//! spec at /workspaces/estamora-conformance-spec vectors=sha256:bf050d7c63e53…
+//! ```
+//!
+//! Both trees were content-identical, which is the point: the digests differed only in
+//! the directory the files were read from. A `vectors.digest` folded this way pins nothing
+//! a reader can check, because reproducing it would require not just the same revision but
+//! the same absolute path, and it makes a receipt produced on one machine unverifiable on
+//! any other. `Vector::origin` is the value folded in now: which library the file came
+//! from, and its place inside that library, both of which are properties of the corpus.
+//!
+//! A reminder that the two digests above are equally *stable* — each reproduces itself on
+//! every run. Stability is not the property that was missing; being a function of the
+//! corpus rather than of the checkout was.
 
 use std::path::{Path, PathBuf};
 
@@ -75,14 +98,17 @@ pub fn profile(root: &Path) -> Result<Digest> {
 ///
 /// Returns a vector error when a vector file cannot be re-read for digesting.
 pub fn corpus(vectors: &[&Vector]) -> Result<Digest> {
-    let mut entries: Vec<(PathBuf, &Vector)> = vectors
-        .iter()
-        .map(|vector| (vector.path().to_path_buf(), *vector))
-        .collect();
-    entries.sort_by(|left, right| left.0.cmp(&right.0));
+    let mut entries: Vec<&Vector> = vectors.to_vec();
+    // Ordered by the corpus place rather than by the rendered string, so the order is the
+    // typed identity's order on every platform. Sorting the rendered form instead would
+    // agree today and diverge for a pair like `a/b` and `a-c`, because `PathBuf` compares
+    // component by component and a string compares byte by byte — and a digest whose order
+    // depends on which of the two is used is a digest two implementations can disagree on.
+    entries.sort_by(|left, right| left.origin().cmp(right.origin()));
 
     let mut folded = String::new();
-    for (path, _) in &entries {
+    for vector in &entries {
+        let path = vector.path();
         let bytes = std::fs::read(path).map_err(|problem| {
             Error::new(
                 ErrorClass::VectorError,
@@ -93,7 +119,7 @@ pub fn corpus(vectors: &[&Vector]) -> Result<Digest> {
             )
             .with_context("vector", path.display().to_string())
         })?;
-        folded.push_str(&path.display().to_string());
+        folded.push_str(&vector.origin().to_string());
         folded.push(':');
         folded.push_str(&Digest::of_bytes(&bytes).to_string());
         folded.push('\n');

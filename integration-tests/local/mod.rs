@@ -495,3 +495,83 @@ fn an_artifact_whose_world_cannot_be_seeded_produces_no_verdict() {
         );
     }
 }
+
+/// Validates the fixture profile at `profile` with `spec` as the specification root, and
+/// stops before anything is executed.
+///
+/// Validation is where both digests are computed, so it is the part of the pipeline these
+/// tests are about: they ask what a report would pin, not what a contract did.
+///
+/// # Panics
+///
+/// Aborts when the fixture bundle or corpus cannot be loaded, which is a defect in the
+/// fixtures rather than an answer about a digest.
+fn validated(profile: &std::path::Path, spec: &std::path::Path) -> estamora_cli::engine::Validated {
+    let target = estamora_cli::engine::Target::parse("fixture:none", None)
+        .unwrap_or_else(|problem| panic!("`fixture:none` is not a target: {problem}"));
+    estamora_cli::engine::validate(&estamora_cli::RunConfig::new(profile, spec, target))
+        .unwrap_or_else(|problem| panic!("the fixture bundle did not validate: {problem}"))
+}
+
+#[test]
+fn the_corpus_digest_does_not_depend_on_where_the_specification_was_checked_out() {
+    // The digest is what a report offers a reader who wants to confirm that two runs
+    // measured the same corpus at the same revision. Folding the file's path into it makes
+    // that impossible: the same revision in two directories produced two digests, so the
+    // only way to reproduce a recorded digest was to reproduce the absolute path it was
+    // produced from. Both digests are still *stable* — each reproduces itself — which is
+    // why nothing caught this: stability was mistaken for being a function of the corpus.
+    let (_first_guard, first_spec, first_profile) = harness::spec_tree_copy();
+    let (_second_guard, second_spec, second_profile) = harness::spec_tree_copy();
+
+    assert_ne!(
+        first_spec, second_spec,
+        "the two copies must be at different paths, or this test asserts nothing"
+    );
+
+    let first = validated(&first_profile, &first_spec);
+    let second = validated(&second_profile, &second_spec);
+
+    assert_eq!(
+        first.corpus_digest, second.corpus_digest,
+        "the same corpus in two directories is the same corpus"
+    );
+    assert_eq!(first.profile_digest, second.profile_digest);
+    assert_eq!(
+        first.vectors, second.vectors,
+        "and it resolves to the same vectors, so the two digests cover the same set"
+    );
+}
+
+#[test]
+fn moving_a_vector_within_the_corpus_changes_the_digest() {
+    // The other half of the claim, and the one that stops the fix for the test above from
+    // being "stop hashing where the file is". A vector moved from one operation directory
+    // to another is a different contribution to the corpus — it now belongs to the
+    // requirements of a different operation — and a digest that did not move would report
+    // the corpus as unchanged after a reorganisation.
+    //
+    // One of the three `transfer` vectors moves rather than the single `balance` one,
+    // because a declared directory that holds no vectors is refused: moving the only
+    // vector out of `balance/` would be testing the loader's emptiness guard, which has
+    // its own test, instead of this one.
+    let (_guard, spec, profile) = harness::spec_tree_copy();
+    let before = validated(&profile, &spec).corpus_digest;
+
+    let from = profile.join("vectors/transfer/transfer-moves-the-exact-amount.yaml");
+    let to = profile.join("vectors/balance/transfer-moves-the-exact-amount.yaml");
+    std::fs::rename(&from, &to).unwrap_or_else(|problem| {
+        panic!(
+            "{} could not be moved to {}: {problem}",
+            from.display(),
+            to.display()
+        )
+    });
+
+    let after = validated(&profile, &spec).corpus_digest;
+    assert_ne!(
+        before, after,
+        "a vector reorganised into another operation directory belongs to another \
+         requirement set, and the digest has to say so"
+    );
+}

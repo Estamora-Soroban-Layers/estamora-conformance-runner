@@ -346,6 +346,74 @@ fn loading_the_same_tree_twice_gives_the_same_order() {
 }
 
 #[test]
+fn a_vector_origin_names_its_library_and_not_the_directory_it_was_read_from() {
+    // The digest the runner records for its corpus is folded from these, so what they
+    // contain is what a report pins. They must name the corpus's own structure — which
+    // library, and where inside it — and must not name the checkout, because two people
+    // with the same revision in different directories have the same corpus and would
+    // otherwise record different digests for it.
+    let fixture = Fixture::new();
+    let corpus = fixture.load().unwrap();
+    let mut origins: Vec<String> = corpus
+        .vectors()
+        .iter()
+        .map(|vector| vector.origin().to_string())
+        .collect();
+    origins.sort();
+
+    assert_eq!(
+        origins,
+        vec![
+            "bundle:vectors/balance/funded.yaml".to_owned(),
+            "shared:common/addresses/unknown.yaml".to_owned(),
+        ],
+        "an origin is the library and the place inside it, on every platform"
+    );
+
+    let checkout = fixture.root.display().to_string();
+    for origin in &origins {
+        assert!(
+            !origin.contains(&checkout),
+            "the checkout must not appear in an origin: {origin} carries {checkout}"
+        );
+    }
+    assert!(
+        !origins
+            .iter()
+            .any(|origin| origin.contains('/') && origin.starts_with('/')),
+        "an origin is never an absolute path"
+    );
+}
+
+#[test]
+fn the_same_corpus_in_two_directories_has_the_same_origins() {
+    // The unit-level form of the property the runner's corpus digest depends on. Two
+    // fixtures are separate temporary trees, so their absolute paths differ while their
+    // contents do not; only the contents may reach an origin.
+    let first = Fixture::new();
+    let second = Fixture::new();
+    assert_ne!(
+        first.root, second.root,
+        "the two fixtures must live at different paths for this to test anything"
+    );
+
+    let origin_of = |fixture: &Fixture| -> Vec<String> {
+        let mut origins: Vec<String> = fixture
+            .load()
+            .unwrap()
+            .vectors()
+            .iter()
+            .map(|vector| vector.origin().to_string())
+            .collect();
+        origins.sort();
+        origins
+    };
+
+    assert_eq!(origin_of(&first), origin_of(&second));
+    assert_eq!(origin_of(&first).len(), 2);
+}
+
+#[test]
 fn a_profile_independent_vector_whose_method_is_absent_is_excluded_not_refused() {
     let fixture = Fixture::new();
     // The shared library carries a scenario for a method this profile does not

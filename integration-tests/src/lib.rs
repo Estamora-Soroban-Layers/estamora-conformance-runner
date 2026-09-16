@@ -255,6 +255,32 @@ pub fn bundle_root(directory: &TempDir) -> PathBuf {
     directory.path().join("bundle")
 }
 
+/// A temporary copy of the whole fixture specification tree.
+///
+/// Returns the guard, the `--spec` root inside the copy and the profile root inside the
+/// copy, in that order.
+///
+/// A digest of a corpus is supposed to be a function of the corpus, and the only way to
+/// ask whether it is one is to put the same corpus somewhere else and hash it again.
+/// [`bundle_with`] cannot answer that: it copies one bundle and lays a malformed document
+/// over it, which is a different question. This copies the tree a `--spec` points at, so a
+/// run against the copy exercises the same resolution a run against the repository does
+/// while every path it reads has moved.
+///
+/// # Panics
+///
+/// Aborts when the fixture tree cannot be copied, which is a defect in the fixture set
+/// rather than a result about a contract.
+#[must_use]
+pub fn spec_tree_copy() -> (TempDir, PathBuf, PathBuf) {
+    let directory = TempDir::new()
+        .unwrap_or_else(|problem| panic!("a temporary directory could not be created: {problem}"));
+    let root = directory.path().join("spec");
+    copy_tree(&fixture_spec_root(), &root);
+    let profile = root.join("profiles/conformance-token/1.0");
+    (directory, root, profile)
+}
+
 /// Copies a directory tree, creating the destination and its parents.
 ///
 /// Iterative rather than recursive, and it does not follow a symlink out of the tree it
