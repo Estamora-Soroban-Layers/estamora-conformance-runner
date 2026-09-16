@@ -1,0 +1,78 @@
+# CodeRabbit review configuration.
+#
+# The point of this file is not to make reviews long. It is to make them land on the
+# things this repository is actually careful about -- the properties the crate-level
+# tests exist to protect -- and to stay quiet about the ones that are mechanical.
+language: en-US
+early_access: false
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+    # A conformance tool is judged on whether its verdicts are reproducible. Changes to
+    # the vectors or the profiles change what a verdict *means*, so they always deserve
+    # a review even in a documentation-only pull request.
+    base_branches:
+      - main
+  path_filters:
+    # Build output is not source.
+    - "!target/**"
+    - "!**/target/**"
+    - "!**/node_modules/**"
+    - "!coverage/**"
+  path_instructions:
+    - path: "crates/estamora-core/**"
+      instructions: >-
+        This crate holds the fixed points of the whole system: the six conformance
+        statuses, the closed error-class registry, and the rule that reduces vector
+        results to one status and one exit code. Check specifically that no second
+        place has been introduced that decides a verdict, and that a new failure mode
+        is a new enum variant rather than a free-form string. An environment failure
+        must never be reachable as a conformance failure.
+    - path: "crates/estamora-soroban/**"
+      instructions: >-
+        This is the only crate that talks to a network. Verify that simulation is used
+        for reads and that nothing here can sign or submit a transaction, and that a
+        refused connection, a timeout and a node returning an error are all classified
+        as environment failures rather than as contract defects.
+    - path: "crates/estamora-assertions/**"
+      instructions: >-
+        Results are per assertion, never per vector. Flag any change that collapses
+        independent claims (interface, authorization, events, behaviour, state,
+        invariants) into a single boolean, because that is what lets a passing
+        interface section be presented as evidence of correct behaviour.
+    - path: "fixtures/**"
+      instructions: >-
+        `fixtures/contracts/` contains deliberately-defective contracts. A defect being
+        wrong is the fixture working as intended. Check that any change to a fixture
+        keeps its stated defect intact and updates the expectation that depends on it.
+    - path: "**/*.rs"
+      instructions: >-
+        This workspace builds with `unsafe_code` forbidden and `clippy::unwrap_used` /
+        `clippy::expect_used` denied outside tests. Error paths must return the typed
+        error rather than panicking. Prefer the existing doc-comment style: say why the
+        code is shaped this way, not what the line does.
+    - path: ".github/workflows/**"
+      instructions: >-
+        Every job must declare `timeout-minutes`, workflow-level `permissions` must be
+        least-privilege, and `pull_request_target` must not be used. Job names are
+        referenced by branch protection, so a rename is a breaking change.
+  tools:
+    gitleaks:
+      enabled: true
+    actionlint:
+      enabled: true
+    yamllint:
+      enabled: true
+    markdownlint:
+      enabled: true
+    clippy:
+      enabled: false
+chat:
+  auto_reply: true
