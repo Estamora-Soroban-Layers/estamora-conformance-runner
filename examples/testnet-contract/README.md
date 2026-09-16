@@ -79,13 +79,22 @@ tool is a better answer than a paragraph saying it works.
 
 | | |
 | --- | --- |
-| contract | `CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P` |
+| contract | `CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW` |
 | network | `testnet` |
-| artifact | `sha256:0fb7bc3d…b1eedc48` — the digest of `fixtures/wasm/measurable-token.wasm` |
+| artifact | `sha256:8393f410…07ffc688` — the digest of `fixtures/wasm/measurable-token.wasm` |
 | profile | `sep-41@1.0`, digest `sha256:94654291…e732aee6` |
-| runner | `estamora 0.1.1`, `2026-09-15T21:23:45Z` |
+| runner | `estamora 0.1.3`, `2026-09-16T08:21:58Z` |
 | reported | 63 checks, 0 failed · 1 vector passed, 19 skipped |
 | verdict | `INCONCLUSIVE` (exit `2`) |
+
+The deployment recorded above is the **second** one. The first was
+`CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P`, at artifact digest
+`sha256:0fb7bc3d…b1eedc48`, and it was superseded when `burn` and `burn_from` were
+given the negative-amount refusal they were missing — before that, `burn` with a
+negative amount credited the holder rather than failing. The artifact was rebuilt from
+the corrected source, redeployed, and re-measured, so the digest and the contract above
+name the same bytes and the verdict below belongs to a contract that refuses a negative
+amount. Anyone citing the earlier pair is citing the fix's own motivating example.
 
 The artifact resolves over RPC, the instance's own code hash is compared against
 the fetched bytes, the interface is read out of the deployed artifact's spec

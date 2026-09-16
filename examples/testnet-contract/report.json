@@ -3,13 +3,13 @@
   "estamora_spec_version": "1.0",
   "runner": {
     "name": "estamora",
-    "version": "0.1.1"
+    "version": "0.1.3"
   },
-  "generated_at": "2026-09-15T21:23:45Z",
+  "generated_at": "2026-09-16T08:21:58Z",
   "target": {
-    "contract": "CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P",
+    "contract": "CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW",
     "network": "testnet",
-    "wasm_hash": "0fb7bc3d83b05a78d9f051e2e7baa8f368649da27512ff5e47c4a0f2b1eedc48",
+    "wasm_hash": "8393f41098591fc37a0a61ef54f3e76154db67139854f0589eb8c64e07ffc688",
     "metadata": {}
   },
   "profile": {
@@ -18,16 +18,16 @@
     "digest": "sha256:94654291d4caf1eccd5aa3f2193532288b0667348ebcb60ec862c188e732aee6"
   },
   "vectors": {
-    "digest": "sha256:9a951e71f790708696ad356b2512a32dfbed23f4e8d0c2756f3d17e56466fba5",
+    "digest": "sha256:4d1b12dfa9a50abc9277e1b602b91643b34597776096063fe365fcf7983cb305",
     "count": 20
   },
   "configuration": {
-    "contract": "CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P",
+    "contract": "CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW",
     "network": "testnet",
-    "profile_root": "../estamora-conformance-spec/profiles/sep-41/1.0",
+    "profile_root": "/tmp/spec-v0.1.1/profiles/sep-41/1.0",
     "seeding": "none",
     "tags": [],
-    "vectors_root": "../estamora-conformance-spec/vectors"
+    "vectors_root": "/tmp/spec-v0.1.1/vectors"
   },
   "results": [
     {
@@ -184,7 +184,7 @@
           "category": "interface",
           "status": "passed",
           "expected": "required method allowance is available",
-          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "observed": "present in contract CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW on `testnet` as read from https://soroban-testnet.stellar.org",
           "detail": "check: interface/method/allowance"
         },
         {
@@ -224,7 +224,7 @@
           "category": "interface",
           "status": "passed",
           "expected": "required method approve is available",
-          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "observed": "present in contract CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW on `testnet` as read from https://soroban-testnet.stellar.org",
           "detail": "check: interface/method/approve"
         },
         {
@@ -280,7 +280,7 @@
           "category": "interface",
           "status": "passed",
           "expected": "required method balance is available",
-          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "observed": "present in contract CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW on `testnet` as read from https://soroban-testnet.stellar.org",
           "detail": "check: interface/method/balance"
         },
         {
@@ -312,7 +312,7 @@
           "category": "interface",
           "status": "passed",
           "expected": "required method transfer is available",
-          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "observed": "present in contract CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW on `testnet` as read from https://soroban-testnet.stellar.org",
           "detail": "check: interface/method/transfer"
         },
         {
@@ -360,7 +360,7 @@
           "category": "interface",
           "status": "passed",
           "expected": "required method transfer_from is available",
-          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "observed": "present in contract CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW on `testnet` as read from https://soroban-testnet.stellar.org",
           "detail": "check: interface/method/transfer-from"
         },
         {
@@ -416,7 +416,7 @@
           "category": "interface",
           "status": "passed",
           "expected": "required method burn is available",
-          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "observed": "present in contract CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW on `testnet` as read from https://soroban-testnet.stellar.org",
           "detail": "check: interface/method/burn"
         },
         {
@@ -456,7 +456,7 @@
           "category": "interface",
           "status": "passed",
           "expected": "required method burn_from is available",
-          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "observed": "present in contract CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW on `testnet` as read from https://soroban-testnet.stellar.org",
           "detail": "check: interface/method/burn-from"
         },
         {
@@ -504,7 +504,7 @@
           "category": "interface",
           "status": "passed",
           "expected": "required method decimals is available",
-          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "observed": "present in contract CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW on `testnet` as read from https://soroban-testnet.stellar.org",
           "detail": "check: interface/method/decimals"
         },
         {
@@ -528,7 +528,7 @@
           "category": "interface",
           "status": "passed",
           "expected": "required method name is available",
-          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "observed": "present in contract CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW on `testnet` as read from https://soroban-testnet.stellar.org",
           "detail": "check: interface/method/name"
         },
         {
@@ -552,7 +552,7 @@
           "category": "interface",
           "status": "passed",
           "expected": "required method symbol is available",
-          "observed": "present in contract CBOBLQVLTYGMB3JDILHJFL5EMUWXIAKUW2N3RTOW2NKYOHC45CPSFV2P on `testnet` as read from https://soroban-testnet.stellar.org",
+          "observed": "present in contract CDB3EKMUGN5E7X2LMO56IB3A55EU4PPUYEF5EBVDKDV3LCLICJNSYKLW on `testnet` as read from https://soroban-testnet.stellar.org",
           "detail": "check: interface/method/symbol"
         },
         {
