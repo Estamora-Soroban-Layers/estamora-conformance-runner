@@ -377,12 +377,13 @@ The product number is the honest one to quote, and it is the lower of the two.
 ### Where the gap is
 
 One finding is worth publishing rather than leaving in a report. **`crates/estamora-cli/src/commands/`
-is at 0.00%** — 758 lines across `run.rs`, `certify.rs`, `inspect.rs`, `profile.rs`, `report.rs`,
-`validate.rs` and `mod.rs`. Those handlers are thin and they are exercised end to end by the
+is at 0.00%** — 343 instrumentable lines, 658 regions and 32 functions, across seven files
+totalling 931 lines of source (`run.rs`, `certify.rs`, `inspect.rs`, `profile.rs`, `report.rs`,
+`validate.rs`, `mod.rs`). Those handlers are thin and they are exercised end to end by the
 exit-code contract tests that build the binary and run it, but no test drives them in-process, so
 `cargo llvm-cov` cannot see them. The same shape of gap as a spawned subprocess in any language,
 and it is the most valuable next thing to close: moving the argument handling and the diagnostic
-translation of those handlers behind callable functions would put roughly 750 lines inside the
+translation of those handlers behind callable functions would put roughly 340 lines inside the
 measured surface.
 
 The lowest-covered modules that *are* measured are `estamora-cli/src/engine/values.rs` (56.1% line)
