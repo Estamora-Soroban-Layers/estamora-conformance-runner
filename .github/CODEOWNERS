@@ -1,0 +1,57 @@
+# Code owners for estamora-conformance-runner.
+#
+# This file is not a formality. `SECURITY.md` tells a reporter who cannot use GitHub's
+# private vulnerability reporting to "contact a maintainer listed in `CODEOWNERS`/the
+# repository's maintainers directly", and this file did not exist, so half of the
+# documented security contact path pointed at a document nobody could open. A policy that
+# names a file that is not there has one fewer way to reach a maintainer than it claims,
+# which is the same class of defect as a report naming a schema that does not resolve.
+#
+# Everything not listed below is owned by the default owner at the foot of this file. The
+# paths that *are* listed are the ones where a change silently changes what a verdict, a
+# release or a dependency decision means. Naming them here does not make review happen; it
+# makes GitHub ask for it, and it records which files this repository treats as
+# load-bearing so that a later reader does not have to infer it.
+
+# The rule that reduces per-vector results to a verdict, the six conformance statuses and
+# the exit-code contract. Every consumer of this tool branches on what this crate defines,
+# and two of the six statuses share exit code `1` deliberately — so a change here is a
+# change to an interface, not an implementation detail.
+/crates/estamora-core/                        @winningtalker-commits
+
+# The hand-written WebAssembly section reader and XDR decoder that read a compiled
+# contract's `contractspecv0` section, and the host that executes untrusted artifacts. This
+# is the only parsing code in the workspace that reads bytes it did not write.
+/crates/estamora-soroban/                     @winningtalker-commits
+
+# The loader that reads a profile bundle from outside this repository, and the assertion
+# layer that decides whether a requirement was satisfied. Both sit on the boundary between
+# trusted and untrusted input.
+/crates/estamora-profile/                      @winningtalker-commits
+/crates/estamora-assertions/                   @winningtalker-commits
+
+# The fixture contracts, each wrong in exactly one named way, and the compiled artifact the
+# end-to-end suite measures. A change here changes what the test suite proves without
+# failing a test, which is the failure this repository is most exposed to.
+/fixtures/                                     @winningtalker-commits
+
+# The dependency tree is part of what a conformance result means: a replaced `sha2` or a
+# different `stellar-xdr` changes the tool that produced a verdict. These four files are
+# where that identity is declared and where the supply-chain decisions are recorded.
+/Cargo.toml                                    @winningtalker-commits
+/Cargo.lock                                    @winningtalker-commits
+/deny.toml                                     @winningtalker-commits
+/rust-toolchain.toml                           @winningtalker-commits
+
+# The release workflow holds the publish plan and the steps that build, execute and verify
+# the binaries a release attaches. It is the one workflow whose mistakes are permanent.
+/.github/workflows/release.yml                 @winningtalker-commits
+
+# The security policy, and the file above that it names.
+/SECURITY.md                                   @winningtalker-commits
+/.github/CODEOWNERS                            @winningtalker-commits
+
+# Default owner. The organisation has a single maintainer today; when it has more, the
+# narrow paths above are the ones to split first, because a change to one of them is a
+# change to what this project's output means.
+*                                              @winningtalker-commits
