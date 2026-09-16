@@ -208,15 +208,22 @@ rustup selects a toolchain from the working directory, not from the source tree.
 binaries above are built with the pinned toolchain and are the ones whose identity matches
 what a report records.
 
-The library crates are published to crates.io; `estamora-cli` is not one of them and will
-not become one. It links `estamora-fixture-token`, the contract that `--contract
+No crate is on crates.io yet. The seven library crates are publishable and `estamora-cli`
+is not one of them and will not become one. It links `estamora-fixture-token`, the contract that `--contract
 fixture:<name>` deploys so the runner can exercise its own execution path without a deployed
 contract, and that fixture is deliberately `publish = false`. Packaging rewrites a path
 dependency into a registry requirement of the same version, so the requirement the command
 would carry names a version no registry will hold. The two routes above are how it arrives,
-and `cargo install estamora-cli` is not a third one to wait for. The plan is written once, in
-the publish block at the end of `.github/workflows/release.yml`, and checked on every commit
-by `scripts/check-publish-plan.py`.
+and `cargo install estamora-cli` is not a third one to wait for.
+
+Publication is deliberately not one of the three routes. `cargo publish` is a human command
+against a token rather than a workflow step, because a version on crates.io cannot be
+withdrawn and this is the one place in the repository where a permanent external action
+should not be a consequence of pushing a tag. The sequence it has to run in is written once,
+in the publish block at the end of `.github/workflows/release.yml`, and checked on every
+commit by `scripts/check-publish-plan.py`, so the plan cannot name a crate that has no way of
+being published. Until that command is run, a released binary or a checkout is how `estamora`
+is obtained, and no registry command is a route to it.
 
 ### From a checkout
 
